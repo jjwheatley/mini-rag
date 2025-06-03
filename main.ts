@@ -2,12 +2,10 @@ import { App, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf  } from
 
 interface PluginSettings {
 	aiModal: string;
-	repetitions: number;
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
 	aiModal: '',
-	repetitions: 40
 }
 
 export const VIEW_TYPE = 'ollama-chat-window';
