@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-ollama",
+	"name": "Ob-llama",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "",
+	"author": "jjwheatley",
+	"authorUrl": "https://github.com/jjwheatley/",
+	"isDesktopOnly": false
+}
