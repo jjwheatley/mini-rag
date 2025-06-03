@@ -1,40 +1,10 @@
-import { App, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf  } from 'obsidian';
+import { Plugin, WorkspaceLeaf } from 'obsidian';
+import {PanelView} from "./src/classes/panel-view";
+import {VIEW_TYPE} from "./src/constants";
+import {PluginSettings} from "./src/types";
+import {DEFAULT_SETTINGS} from "./src/defaults";
+import {SettingTab} from "./src/classes/settings-tab";
 
-interface PluginSettings {
-	aiModal: string;
-}
-
-const DEFAULT_SETTINGS: PluginSettings = {
-	aiModal: '',
-}
-
-export const VIEW_TYPE = 'ollama-chat-window';
-
-export class PanelView extends ItemView {
-	constructor(leaf: WorkspaceLeaf) {
-		super(leaf);
-		this.icon = "brain"
-	}
-
-	getViewType() {
-		return VIEW_TYPE;
-	}
-
-	getDisplayText() {
-		return 'Example view';
-	}
-
-	async onOpen() {
-		const container = this.containerEl.children[1];
-		container.empty();
-		container.createEl('h4', { text: 'Example view' });
-		container.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
-	}
-
-	async onClose() {
-		// Nothing to clean up.
-	}
-}
 
 export default class OllamaPlugin extends Plugin {
 	settings: PluginSettings;
@@ -94,42 +64,3 @@ export default class OllamaPlugin extends Plugin {
 	}
 }
 
-class SettingTab extends PluginSettingTab {
-	plugin: OllamaPlugin;
-
-	constructor(app: App, plugin: OllamaPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	getModalOptions(): string[] {
-		const result = ["mistral", "llama2"]; // ToDo: Load from Ollama
-		result.sort((a, b) => a.localeCompare(b));
-		return result;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Modal')
-			.setDesc('The modal you want to chat with')
-			.addDropdown((dropdown) => {
-				const options = this.getModalOptions()
-				for(let i =0; i<options.length; i++) {
-					const opt = options[i]
-					dropdown.addOption(opt, opt)
-				}
-				dropdown.setValue(this.plugin.settings.aiModal)
-
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.aiModal = value
-					await this.plugin.saveSettings();
-						// this.plugin.settings.cycleDurationMinutes = +value;
-				});
-			});
-
-	}
-}
