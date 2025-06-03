@@ -7,6 +7,12 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+.panelViewContainer{
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
 .ollamaPluginQuestionBox{
 	width: 100%;
 	height: 100px;

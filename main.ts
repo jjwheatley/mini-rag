@@ -14,7 +14,7 @@ export default class OllamaPlugin extends Plugin {
 
 		this.registerView(
 			VIEW_TYPE,
-			(leaf) => new PanelView(leaf)
+			(leaf) => new PanelView(leaf, this.settings.aiModal)
 		);
 
 		this.addRibbonIcon('brain', 'Ask Ollama', () => {
