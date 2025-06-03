@@ -1,5 +1,6 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
 import OllamaPlugin from "../../main";
+import {DEFAULT_SETTINGS} from "../defaults";
 
 export class SettingTab extends PluginSettingTab {
 	plugin: OllamaPlugin;
@@ -34,9 +35,21 @@ export class SettingTab extends PluginSettingTab {
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.aiModal = value
 					await this.plugin.saveSettings();
-					// this.plugin.settings.cycleDurationMinutes = +value;
 				});
 			});
+
+
+		new Setting(containerEl)
+			.setName('Ollama URL')
+			.setDesc('The local URL of the modal you want to chat with')
+			.addText(text => text
+				.setPlaceholder(DEFAULT_SETTINGS.ollamaURL)
+				.setValue(this.plugin.settings.ollamaURL)
+				.onChange(async (value) => {
+					this.plugin.settings.ollamaURL = value;
+					await this.plugin.saveSettings();
+				}));
+
 
 	}
 }

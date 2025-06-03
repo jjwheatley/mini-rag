@@ -14,16 +14,12 @@ export default class OllamaPlugin extends Plugin {
 
 		this.registerView(
 			VIEW_TYPE,
-			(leaf) => new PanelView(leaf, this.settings.aiModal)
+			(leaf) => new PanelView(leaf, this)
 		);
 
 		this.addRibbonIcon('brain', 'Ask Ollama', () => {
 			this.activateView();
 		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		// const statusBarItemEl = this.addStatusBarItem();
-		// statusBarItemEl.setText('Status Bar Text');
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingTab(this.app, this));
