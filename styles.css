@@ -6,3 +6,9 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.ollamaPluginQuestionBox{
+	width: 100%;
+	height: 100px;
+	resize: none;
+}
