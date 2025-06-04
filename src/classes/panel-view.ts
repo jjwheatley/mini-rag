@@ -1,5 +1,5 @@
 import {ItemView, WorkspaceLeaf} from "obsidian";
-import {VIEW_TYPE} from "../constants";
+import {ICON_NAME, VIEW_TYPE} from "../constants";
 import {OllamaWrapper} from "./ollama-wrapper";
 import OllamaPlugin from "../../main";
 import {PluginSettings} from "../types";
@@ -10,7 +10,7 @@ export class PanelView extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin, initialContext?: string) {
 		super(leaf);
-		this.icon = "brain"
+		this.icon = ICON_NAME
 		this.settings = plugin.settings;
 		this.ai = new OllamaWrapper(plugin.settings, initialContext);
 	}

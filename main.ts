@@ -3,7 +3,7 @@ import {SettingTab} from "./src/classes/settings-tab";
 import {PanelView} from "./src/classes/panel-view";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
-import {VIEW_TYPE} from "./src/constants";
+import {ICON_NAME, VIEW_TYPE} from "./src/constants";
 
 
 export default class OllamaPlugin extends Plugin {
@@ -21,7 +21,7 @@ export default class OllamaPlugin extends Plugin {
 			}
 		);
 
-		this.addRibbonIcon('brain', 'Ask Ollama', () => {
+		this.addRibbonIcon(ICON_NAME, 'Ask Ollama', () => {
 			this.activateView();
 		});
 
@@ -46,7 +46,7 @@ export default class OllamaPlugin extends Plugin {
 		menu.addItem((item) => {
 			item
 				.setTitle("Chat with " + this.settings.aiModal + " about \"" + file?.name.slice(0,-3)+ "\"")
-				.setIcon("brain")
+				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					await this.activateView(file?.path);
 				});
