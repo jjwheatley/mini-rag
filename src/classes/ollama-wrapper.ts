@@ -1,10 +1,10 @@
-import { requestUrl } from "obsidian";
+import {requestUrl, RequestUrlResponse} from "obsidian";
 import {PluginSettings} from "../types";
 
 export class OllamaWrapper{
-
 	settings: PluginSettings;
 	temperature: number
+	context: number[]
 
 	constructor(settings: PluginSettings) {
 		this.settings = settings;
@@ -20,18 +20,16 @@ export class OllamaWrapper{
 			url: `${this.settings.ollamaURL}/api/generate`,
 			body: JSON.stringify({
 				prompt: question,
+				context: this.context,
 				model: this.settings.aiModal,
 				options: {
 					temperature: this.temperature
 				},
+				stream: false,
 			}),
 		}).then(result => {
-			output = result.text
-				.split("\n")
-				.filter((item) => item && item.length > 0)
-				.map((item) => JSON.parse(item).response)
-				.join("")
-				.trim();
+			output = result.json.response
+			this.context = result.json.context
 		})
 
 		return output

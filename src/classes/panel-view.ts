@@ -40,6 +40,7 @@ export class PanelView extends ItemView {
 		// Query AI & add response to conversation
 		console.log("Sending... " + query);
 		const answer = await this.ai.askQuestion(query)
+		console.log("Answer Received... ", answer)
 		await this.addToConversation(conversation, answer, true)
 	}
 
