@@ -18,3 +18,26 @@ If your plugin does not need CSS, delete this file.
 	height: 100px;
 	resize: none;
 }
+.ollamaPluginConvoBox.query{
+	margin-top: 4px;
+	text-align: right;
+	background: green;
+	width: auto;
+	max-width: 90%;
+	justify-self: right;
+	border-radius: 10px;
+	padding: 8px;
+}
+
+.ollamaPluginConvoBox.response{
+	margin-top: 4px;
+	text-align: left;
+	background: grey;
+	width: auto;
+	max-width: 90%;
+	justify-self: left;
+	border-radius: 10px;
+	padding: 8px;
+}
+
+

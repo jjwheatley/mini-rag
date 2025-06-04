@@ -6,12 +6,13 @@ import {PluginSettings} from "../types";
 
 export class PanelView extends ItemView {
 	settings: PluginSettings;
-
+	ai: OllamaWrapper
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
 		this.icon = "brain"
 		this.settings = plugin.settings;
+		this.ai = new OllamaWrapper(plugin.settings);
 	}
 
 	getViewType() {
@@ -22,28 +23,40 @@ export class PanelView extends ItemView {
 		return 'Example view';
 	}
 
+	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
+		if (!isResponse) {
+			conversation.createEl('div', { text: text, cls: "ollamaPluginConvoBox query" });
+		}else{
+			conversation.createEl('div', { text: text, cls: "ollamaPluginConvoBox response" });
+		}
+	}
+
+	async askQuestion(questionTextArea:HTMLTextAreaElement, conversation: HTMLDivElement) {
+		// Move Query from textArea to Conversation
+		const query = questionTextArea.value
+		questionTextArea.value = '';
+		await this.addToConversation(conversation, query, false)
+
+		// Query AI & add response to conversation
+		console.log("Sending... " + query);
+		const answer = await this.ai.askQuestion(query)
+		await this.addToConversation(conversation, answer, true)
+	}
+
 	async onOpen() {
 		const container = this.containerEl.children[1];
 		container.empty();
 		container.classList.add("panelViewContainer");
 
-		const conversationBox = container.createEl("div")
+		const conversationBox = container.createEl("div", {cls: "conversationBox"});
 		conversationBox.createEl('h3', { text: 'Chat with ' + this.settings.aiModal});
-		// conversationBox.createEl('div', { text: 'Hello, what can I help you with?', cls: "ollamaPluginConvoBox" });
 
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });
 		const question = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
 		const sendButton = questionBox.createEl("button", {text: "Send"})
 		sendButton.addEventListener("click", async () => {
-			console.log("Sending..." + question.value);
-			const AI = new OllamaWrapper(this.settings);
-			let answer = await AI.askQuestion(question.value)
-			console.log(answer);
-			//ToDo:
-			// - Append `question.value` to conversation
-			// - Send to Ollama
-			// - Append Answer to conversation
+			await this.askQuestion(question, conversationBox)
 		})
 	}
 
