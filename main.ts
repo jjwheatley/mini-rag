@@ -47,32 +47,28 @@ export default class OllamaPlugin extends Plugin {
 				.setTitle("Chat with " + this.settings.aiModal + " about \"" + file?.name.slice(0,-3)+ "\"")
 				.setIcon("brain")
 				.onClick(async () => {
-					new Notice(file?.path);
+					await this.activateView(file?.path);
 				});
 		});
 	}
 
-
-	async activateView() {
+	async activateView(contextFilePath?: string) {
 		const { workspace } = this.app;
 
-		let leaf: WorkspaceLeaf | null = null;
+		let leaf: WorkspaceLeaf;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
 
-		if (leaves.length > 0) {
-			// A leaf with our view already exists, use that
+		if (leaves.length > 0) { // A leaf with our view already exists, use it
 			leaf = leaves[0];
-		} else {
-			// Our view could not be found in the workspace, create a new leaf
-			// in the right sidebar for it
-			leaf = workspace.getRightLeaf(false);
-			if(leaf)
-				await leaf.setViewState({ type: VIEW_TYPE, active: true });
+			await workspace.revealLeaf(leaf);// "Reveal" leaf if sidebar is collapsed
+		} else { // View isn't found in workspace, create in sidebar as new leaf
+			const rightMostLeaf = workspace.getRightLeaf(false);
+			if(rightMostLeaf) {
+				leaf = rightMostLeaf
+				await leaf.setViewState({type: VIEW_TYPE, active: true});
+				await workspace.revealLeaf(leaf);// "Reveal" leaf if sidebar is collapsed
+			}
 		}
-
-		// "Reveal" the leaf in case it is in a collapsed sidebar
-		if (leaf)
-			await workspace.revealLeaf(leaf);
 	}
 
 	onunload() {
