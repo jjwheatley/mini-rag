@@ -48,7 +48,11 @@ export default class OllamaPlugin extends Plugin {
 				.setTitle("Chat with " + this.settings.aiModal + " about \"" + file?.name.slice(0,-3)+ "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
-					await this.activateView(file?.path);
+					// ToDo: Pass context to the actual LLM model
+					const context = file ? await this.getFileText(file.path) : ""
+					console.log(context)
+
+					await this.activateView();
 				});
 		});
 	}
@@ -58,14 +62,11 @@ export default class OllamaPlugin extends Plugin {
 		return !file ? "" : await this.app.vault.read(file);
 	}
 
-	async activateView(contextFilePath?: string) {
+	async activateView() {
 		const { workspace } = this.app;
 
 		let leaf: WorkspaceLeaf;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
-
-		const context = contextFilePath ? await this.getFileText(contextFilePath) : "";
-		console.log(context);
 
 		if (leaves.length > 0) { // A leaf with our view already exists, use it
 			leaf = leaves[0];
