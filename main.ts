@@ -35,7 +35,8 @@ export default class OllamaPlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
-				if(view?.file) this.registerMenuItem(menu, view.file)// Register a view menu item
+				if(view?.file)
+					this.registerMenuItem(menu, view.file)// Register a view menu item
 			})
 		);
 	}
@@ -50,6 +51,7 @@ export default class OllamaPlugin extends Plugin {
 				});
 		});
 	}
+
 
 	async activateView() {
 		const { workspace } = this.app;

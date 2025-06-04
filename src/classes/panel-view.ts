@@ -20,7 +20,7 @@ export class PanelView extends ItemView {
 	}
 
 	getDisplayText() {
-		return 'Example view';
+		return 'AI Chat';
 	}
 
 	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
