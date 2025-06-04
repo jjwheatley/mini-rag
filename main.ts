@@ -1,9 +1,9 @@
 import {Menu, Plugin, TAbstractFile, WorkspaceLeaf} from 'obsidian';
-import {PanelView} from "./src/classes/panel-view";
-import {VIEW_TYPE} from "./src/constants";
 import {SettingTab} from "./src/classes/settings-tab";
-import {PluginSettings} from "./src/types";
+import {PanelView} from "./src/classes/panel-view";
 import {DEFAULT_SETTINGS} from "./src/defaults";
+import {PluginSettings} from "./src/types";
+import {VIEW_TYPE} from "./src/constants";
 
 
 export default class OllamaPlugin extends Plugin {
