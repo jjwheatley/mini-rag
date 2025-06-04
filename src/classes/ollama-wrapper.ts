@@ -5,10 +5,12 @@ export class OllamaWrapper{
 	settings: PluginSettings;
 	temperature: number
 	context: number[]
+	initialContext: string
 
-	constructor(settings: PluginSettings) {
+	constructor(settings: PluginSettings, initialContext?: string) {
 		this.settings = settings;
 		this.temperature = 0.1; // ToDo: Make configurable in settings
+		this.initialContext = initialContext ?? ""
 		console.log(this.settings.aiModal)
 	}
 

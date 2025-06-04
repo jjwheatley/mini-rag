@@ -8,11 +8,11 @@ export class PanelView extends ItemView {
 	settings: PluginSettings;
 	ai: OllamaWrapper
 
-	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
+	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin, initialContext?: string) {
 		super(leaf);
 		this.icon = "brain"
 		this.settings = plugin.settings;
-		this.ai = new OllamaWrapper(plugin.settings);
+		this.ai = new OllamaWrapper(plugin.settings, initialContext);
 	}
 
 	getViewType() {
@@ -60,7 +60,6 @@ export class PanelView extends ItemView {
 			await this.askQuestion(question, conversationBox)
 		})
 	}
-
 
 	async onClose() {
 		// Nothing to clean up.
