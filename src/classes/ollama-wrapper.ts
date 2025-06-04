@@ -8,7 +8,7 @@ export class OllamaWrapper{
 
 	constructor(settings: PluginSettings) {
 		this.settings = settings;
-		this.temperature = 0.1;
+		this.temperature = 0.1; // ToDo: Make configurable in settings
 		console.log(this.settings.aiModal)
 	}
 
