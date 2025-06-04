@@ -1,4 +1,4 @@
-import {requestUrl, RequestUrlResponse} from "obsidian";
+import {requestUrl} from "obsidian";
 import {PluginSettings} from "../types";
 
 export class OllamaWrapper{

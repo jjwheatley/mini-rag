@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import {Menu, Notice, Plugin, TAbstractFile, WorkspaceLeaf} from 'obsidian';
 import {PanelView} from "./src/classes/panel-view";
 import {VIEW_TYPE} from "./src/constants";
 import {PluginSettings} from "./src/types";
@@ -23,6 +23,32 @@ export default class OllamaPlugin extends Plugin {
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingTab(this.app, this));
+
+
+
+		// Register menu items to allow passing notes as context
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				this.registerMenuItem(menu, file)// Register a file menu item
+			})
+		);
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				if(view?.file) this.registerMenuItem(menu, view.file)// Register a view menu item
+			})
+		);
+	}
+
+	registerMenuItem(menu: Menu, file: TAbstractFile){
+		menu.addItem((item) => {
+			item
+				.setTitle("Chat with " + this.settings.aiModal + " about \"" + file?.name.slice(0,-3)+ "\"")
+				.setIcon("brain")
+				.onClick(async () => {
+					new Notice(file?.path);
+				});
+		});
 	}
 
 	async activateView() {
