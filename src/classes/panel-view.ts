@@ -1,18 +1,14 @@
 import {ItemView, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
-import {OllamaWrapper} from "./ollama-wrapper";
 import OllamaPlugin from "../../main";
-import {PluginSettings} from "../types";
 
 export class PanelView extends ItemView {
-	settings: PluginSettings;
-	ai: OllamaWrapper
+	plugin: OllamaPlugin;
 
-	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin, initialContext?: string) {
+	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
 		this.icon = ICON_NAME
-		this.settings = plugin.settings;
-		this.ai = new OllamaWrapper(plugin.settings, initialContext);
+		this.plugin = plugin;
 	}
 
 	getViewType() {
@@ -39,7 +35,7 @@ export class PanelView extends ItemView {
 
 		// Query AI & add response to conversation
 		console.log("Sending... " + query);
-		const answer = await this.ai.askQuestion(query)
+		const answer = await this.plugin.ai.askQuestion(query)
 		console.log("Answer Received... ", answer)
 		await this.addToConversation(conversation, answer, true)
 	}
@@ -50,7 +46,7 @@ export class PanelView extends ItemView {
 		container.classList.add("panelViewContainer");
 
 		const conversationBox = container.createEl("div", {cls: "conversationBox"});
-		conversationBox.createEl('h3', { text: 'Chat with ' + this.settings.aiModal});
+		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.settings.aiModal});
 
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });

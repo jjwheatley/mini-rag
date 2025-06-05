@@ -1,17 +1,21 @@
-import {Menu, Plugin, TAbstractFile, WorkspaceLeaf} from 'obsidian';
+import {Menu, Plugin, TAbstractFile} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {PanelView} from "./src/classes/panel-view";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
 import {ICON_NAME, VIEW_TYPE} from "./src/constants";
+import {OllamaWrapper} from "./src/classes/ollama-wrapper";
+import {activateViewInWorkspace} from "./src/utils";
 
 
 export default class OllamaPlugin extends Plugin {
 	settings: PluginSettings;
 	view: PanelView;
+	ai: OllamaWrapper
 
 	async onload() {
 		await this.loadSettings()
+		this.ai = this.getAI()
 
 		this.registerView(
 			VIEW_TYPE,
@@ -22,7 +26,7 @@ export default class OllamaPlugin extends Plugin {
 		);
 
 		this.addRibbonIcon(ICON_NAME, 'Ask Ollama', () => {
-			this.activateView();
+			activateViewInWorkspace(this.app.workspace);
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -42,6 +46,15 @@ export default class OllamaPlugin extends Plugin {
 		);
 	}
 
+	onunload() {
+
+	}
+
+	getAI(initialContext?: string){
+		return new OllamaWrapper(this.settings, initialContext ?? '');
+	}
+
+
 	registerMenuItem(menu: Menu, file: TAbstractFile | null){
 		menu.addItem((item) => {
 			item
@@ -52,37 +65,16 @@ export default class OllamaPlugin extends Plugin {
 					const context = file ? await this.getFileText(file.path) : ""
 					console.log(context)
 
-					await this.activateView();
+					await activateViewInWorkspace(this.app.workspace);
 				});
 		});
 	}
 
+
+
 	async getFileText(contextFilePath: string){
 		const file = this.app.vault.getFileByPath(contextFilePath)
 		return !file ? "" : await this.app.vault.read(file);
-	}
-
-	async activateView() {
-		const { workspace } = this.app;
-
-		let leaf: WorkspaceLeaf;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
-
-		if (leaves.length > 0) { // A leaf with our view already exists, use it
-			leaf = leaves[0];
-			await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
-		} else { // View isn't found in workspace, create in sidebar as new leaf
-			const rightMostLeaf = workspace.getRightLeaf(false);
-			if(rightMostLeaf) {
-				leaf = rightMostLeaf
-				await leaf.setViewState({type: VIEW_TYPE, active: true});
-				await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
-			}
-		}
-	}
-
-	onunload() {
-
 	}
 
 	async loadSettings() {
