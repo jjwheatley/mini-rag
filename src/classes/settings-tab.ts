@@ -16,12 +16,8 @@ export class SettingTab extends PluginSettingTab {
 		return result;
 	}
 
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
+	addModelSelector(container: HTMLElement) {
+		new Setting(container)
 			.setName('Model')
 			.setDesc('The model you want to chat with')
 			.addDropdown((dropdown) => {
@@ -39,9 +35,11 @@ export class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+	}
 
+	addOllamaURL(container: HTMLElement) {
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Ollama URL')
 			.setDesc('The local URL of the model you want to chat with')
 			.addText(text => text
@@ -51,6 +49,16 @@ export class SettingTab extends PluginSettingTab {
 					this.plugin.settings.ollamaURL = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+
+	display(): void {
+		const {containerEl} = this;
+
+		containerEl.empty();
+
+		this.addOllamaURL(containerEl);
+		this.addModelSelector(containerEl);
+
 
 
 	}
