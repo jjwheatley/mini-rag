@@ -26,6 +26,8 @@ export default class OllamaPlugin extends Plugin {
 		);
 
 		this.addRibbonIcon(ICON_NAME, 'Ask Ollama (without context)', () => {
+			//Remove existing context and chat history
+			this.ai = this.getAI()
 			this.view.resetChat()
 			activateViewInWorkspace(this.app.workspace);
 		});
@@ -62,17 +64,15 @@ export default class OllamaPlugin extends Plugin {
 				.setTitle("Chat with " + this.settings.aiModal + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
-					this.view.resetChat(filename)
-					// ToDo: Pass context to the actual LLM model
 					const context = file ? await this.getFileText(file.path) : ""
-					console.log(context)
+					//Remove existing context and chat history
+					this.ai = this.getAI(context)
+					this.view.resetChat(filename)
 
 					await activateViewInWorkspace(this.app.workspace);
 				});
 		});
 	}
-
-
 
 	async getFileText(contextFilePath: string){
 		const file = this.app.vault.getFileByPath(contextFilePath)

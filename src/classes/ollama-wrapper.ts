@@ -5,13 +5,19 @@ export class OllamaWrapper{
 	settings: PluginSettings;
 	temperature: number
 	context: number[]
-	initialContext: string
 
 	constructor(settings: PluginSettings, initialContext?: string) {
 		this.settings = settings;
 		this.temperature = 0.1; // ToDo: Make configurable in settings
-		this.initialContext = initialContext ?? ""
-		console.log(this.settings.aiModal)
+		if(initialContext && initialContext.length > 0){
+			this.setupInitialContext(initialContext)
+		}
+	}
+
+	setupInitialContext(initialContext: string){
+		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
+		prompt+= "\n\n\n The Text: " + initialContext + "\n"
+		const _ = this.askQuestion(prompt);
 	}
 
 	async askQuestion(question: string) {
