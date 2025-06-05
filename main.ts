@@ -7,7 +7,6 @@ import {ICON_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 import {activateViewInWorkspace} from "./src/utils";
 
-
 export default class OllamaPlugin extends Plugin {
 	settings: PluginSettings;
 	view: PanelView;

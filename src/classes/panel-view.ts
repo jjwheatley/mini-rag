@@ -27,16 +27,16 @@ export class PanelView extends ItemView {
 		}
 	}
 
-	async askQuestion(questionTextArea:HTMLTextAreaElement, conversation: HTMLDivElement) {
+	async generateConvo(questionTextArea:HTMLTextAreaElement, conversation: HTMLDivElement) {
 		// Move Query from textArea to Conversation
 		const query = questionTextArea.value
 		questionTextArea.value = '';
 		await this.addToConversation(conversation, query, false)
 
 		// Query AI & add response to conversation
-		console.log("Sending... " + query);
+		// console.log("Sending... " + query);
 		const answer = await this.plugin.ai.askQuestion(query)
-		console.log("Answer Received... ", answer)
+		// console.log("Answer Received... ", answer)
 		await this.addToConversation(conversation, answer, true)
 	}
 
@@ -55,7 +55,7 @@ export class PanelView extends ItemView {
 		const question = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
 		const sendButton = questionBox.createEl("button", {text: "Send"})
 		sendButton.addEventListener("click", async () => {
-			await this.askQuestion(question, conversationBox)
+			await this.generateConvo(question, conversationBox)
 		})
 	}
 
