@@ -25,7 +25,8 @@ export default class OllamaPlugin extends Plugin {
 			}
 		);
 
-		this.addRibbonIcon(ICON_NAME, 'Ask Ollama', () => {
+		this.addRibbonIcon(ICON_NAME, 'Ask Ollama (without context)', () => {
+			this.view.resetChat()
 			activateViewInWorkspace(this.app.workspace);
 		});
 
