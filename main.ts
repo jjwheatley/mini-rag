@@ -53,7 +53,7 @@ export default class OllamaPlugin extends Plugin {
 	}
 
 	spawnAI(initialContext?: string){
-		return new OllamaWrapper(this.settings, initialContext ?? '');
+		return new OllamaWrapper(this, initialContext ?? '');
 	}
 
 	registerMenuItem(menu: Menu, file: TAbstractFile | null){

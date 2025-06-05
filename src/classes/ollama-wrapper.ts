@@ -1,12 +1,13 @@
 import {requestUrl} from "obsidian";
 import {PluginSettings} from "../types";
+import OllamaPlugin from "../../main";
 
 export class OllamaWrapper{
 	settings: PluginSettings;
 	context: number[]
 
-	constructor(settings: PluginSettings, initialContext?: string) {
-		this.settings = settings;
+	constructor(plugin: OllamaPlugin, initialContext?: string) {
+		this.settings = plugin.settings;
 		if(initialContext && initialContext.length > 0){
 			this.setupInitialContext(initialContext)
 		}
@@ -15,7 +16,11 @@ export class OllamaWrapper{
 	setupInitialContext(initialContext: string){
 		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
-		this.askQuestion(prompt).then();
+
+		//ToDo: Disable input, until initial call completed - Disable here
+		this.askQuestion(prompt).then(
+			//ToDo: Disable input, until initial call completed - Re-enable here
+		);
 	}
 
 	async getModelList(){
