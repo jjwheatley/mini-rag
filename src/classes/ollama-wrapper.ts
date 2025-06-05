@@ -17,7 +17,20 @@ export class OllamaWrapper{
 	setupInitialContext(initialContext: string){
 		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
-		const _ = this.askQuestion(prompt);
+		this.askQuestion(prompt).then();
+	}
+
+	async getModelList(){
+		let output: string[] = []
+
+		await requestUrl({
+			method: "GET",
+			url: `${this.settings.ollamaURL}/api/tags`,
+		}).then(result => {
+			output = result.json.models.map((model: { name: string; }) => model.name)
+		})
+
+		return output
 	}
 
 	async askQuestion(question: string) {
@@ -29,7 +42,7 @@ export class OllamaWrapper{
 			body: JSON.stringify({
 				prompt: question,
 				context: this.context,
-				model: this.settings.aiModal,
+				model: this.settings.aiModel,
 				options: {
 					temperature: this.temperature
 				},

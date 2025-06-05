@@ -14,7 +14,7 @@ export default class OllamaPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings()
-		this.ai = this.getAI()
+		this.ai = this.spawnAI()
 
 		this.registerView(
 			VIEW_TYPE,
@@ -26,7 +26,7 @@ export default class OllamaPlugin extends Plugin {
 
 		this.addRibbonIcon(ICON_NAME, 'Ask Ollama (without context)', () => {
 			//Remove existing context and chat history
-			this.ai = this.getAI()
+			this.ai = this.spawnAI()
 			this.view.resetChat()
 			activateViewInWorkspace(this.app.workspace);
 		});
@@ -52,7 +52,7 @@ export default class OllamaPlugin extends Plugin {
 
 	}
 
-	getAI(initialContext?: string){
+	spawnAI(initialContext?: string){
 		return new OllamaWrapper(this.settings, initialContext ?? '');
 	}
 
@@ -60,12 +60,12 @@ export default class OllamaPlugin extends Plugin {
 		menu.addItem((item) => {
 			const filename = file?.name.slice(0,-3)
 			item
-				.setTitle("Chat with " + this.settings.aiModal + " about \"" + filename + "\"")
+				.setTitle("Chat with " + this.settings.aiModel + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					const context = file ? await this.getFileText(file.path) : ""
 					//Remove existing context and chat history
-					this.ai = this.getAI(context)
+					this.ai = this.spawnAI(context)
 					this.view.resetChat(filename)
 
 					await activateViewInWorkspace(this.app.workspace);

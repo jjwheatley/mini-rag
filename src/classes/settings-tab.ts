@@ -10,8 +10,8 @@ export class SettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	getModalOptions(): string[] {
-		const result = ["mistral", "llama2"]; // ToDo: Load from Ollama
+	async getModelOptions() {
+		const result = await this.plugin.ai.getModelList()
 		result.sort((a, b) => a.localeCompare(b));
 		return result;
 	}
@@ -22,18 +22,20 @@ export class SettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Modal')
-			.setDesc('The modal you want to chat with')
+			.setName('Model')
+			.setDesc('The model you want to chat with')
 			.addDropdown((dropdown) => {
-				const options = this.getModalOptions()
-				for(let i =0; i<options.length; i++) {
-					const opt = options[i]
-					dropdown.addOption(opt, opt)
-				}
-				dropdown.setValue(this.plugin.settings.aiModal)
+				this.getModelOptions().then(options => {
+					for(let i =0; i< options.length; i++) {
+						const opt = options[i]
+						dropdown.addOption(opt, opt)
+					}
+					dropdown.setValue(this.plugin.settings.aiModel)
+				})
+
 
 				dropdown.onChange(async (value) => {
-					this.plugin.settings.aiModal = value
+					this.plugin.settings.aiModel = value
 					await this.plugin.saveSettings();
 				});
 			});
@@ -41,7 +43,7 @@ export class SettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Ollama URL')
-			.setDesc('The local URL of the modal you want to chat with')
+			.setDesc('The local URL of the model you want to chat with')
 			.addText(text => text
 				.setPlaceholder(DEFAULT_SETTINGS.ollamaURL)
 				.setValue(this.plugin.settings.ollamaURL)

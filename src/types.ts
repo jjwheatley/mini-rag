@@ -1,5 +1,5 @@
 
 export interface PluginSettings {
-	aiModal: string;
+	aiModel: string;
 	ollamaURL: string;
 }
