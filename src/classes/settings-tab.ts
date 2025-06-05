@@ -51,6 +51,21 @@ export class SettingTab extends PluginSettingTab {
 				}));
 	}
 
+	addHyperParameterTemperature(container: HTMLElement) {
+		new Setting(container)
+			.setName('Temperature')
+			.setDesc('Controls the temperature hyper parameter of the model')
+			.addSlider(slider => slider
+				.setLimits(0.1, 1.0, 0.05)
+				.setValue(this.plugin.settings.temperature)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.temperature = value;
+					await this.plugin.saveSettings();
+				})
+			)
+	}
+
 	display(): void {
 		const {containerEl} = this;
 
@@ -58,6 +73,7 @@ export class SettingTab extends PluginSettingTab {
 
 		this.addOllamaURL(containerEl);
 		this.addModelSelector(containerEl);
+		this.addHyperParameterTemperature(containerEl);
 
 
 
