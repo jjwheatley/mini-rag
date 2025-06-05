@@ -40,13 +40,15 @@ export class PanelView extends ItemView {
 		await this.addToConversation(conversation, answer, true)
 	}
 
-	async onOpen() {
+	resetChat(chatSubject?: string){
 		const container = this.containerEl.children[1];
 		container.empty();
 		container.classList.add("panelViewContainer");
 
 		const conversationBox = container.createEl("div", {cls: "conversationBox"});
 		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.settings.aiModal});
+		if(chatSubject)
+			conversationBox.createEl('div', { text: 'Subject: ' + chatSubject});
 
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });
@@ -55,6 +57,10 @@ export class PanelView extends ItemView {
 		sendButton.addEventListener("click", async () => {
 			await this.askQuestion(question, conversationBox)
 		})
+	}
+
+	async onOpen() {
+		this.resetChat()
 	}
 
 	async onClose() {

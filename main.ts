@@ -54,13 +54,14 @@ export default class OllamaPlugin extends Plugin {
 		return new OllamaWrapper(this.settings, initialContext ?? '');
 	}
 
-
 	registerMenuItem(menu: Menu, file: TAbstractFile | null){
 		menu.addItem((item) => {
+			const filename = file?.name.slice(0,-3)
 			item
-				.setTitle("Chat with " + this.settings.aiModal + " about \"" + file?.name.slice(0,-3)+ "\"")
+				.setTitle("Chat with " + this.settings.aiModal + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
+					this.view.resetChat(filename)
 					// ToDo: Pass context to the actual LLM model
 					const context = file ? await this.getFileText(file.path) : ""
 					console.log(context)
