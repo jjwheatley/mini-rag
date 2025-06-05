@@ -56,11 +56,16 @@ export default class OllamaPlugin extends Plugin {
 		return new OllamaWrapper(this, initialContext ?? '');
 	}
 
+	getModelUserFriendlyName(){
+		//Capitalize the first letter of the name and return everything up to the ':' symbol
+		return `${this.settings.aiModel.charAt(0).toUpperCase()}${this.settings.aiModel.slice(1, this.settings.aiModel.indexOf(':'))}`;
+	}
+
 	registerMenuItem(menu: Menu, file: TAbstractFile | null){
 		menu.addItem((item) => {
 			const filename = file?.name.slice(0,-3)
 			item
-				.setTitle("Chat with " + this.settings.aiModel + " about \"" + filename + "\"")
+				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					const context = file ? await this.getFileText(file.path) : ""

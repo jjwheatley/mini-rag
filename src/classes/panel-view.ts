@@ -46,7 +46,7 @@ export class PanelView extends ItemView {
 		container.classList.add("panelViewContainer");
 
 		const conversationBox = container.createEl("div", {cls: "conversationBox"});
-		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.settings.aiModel});
+		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
 		if(chatSubject)
 			conversationBox.createEl('div', { text: 'Subject: ' + chatSubject});
 
