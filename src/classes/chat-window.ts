@@ -8,6 +8,8 @@ export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
 	chatStarted: Date;
 	messages: Message[];
+	questionTextbox: HTMLTextAreaElement
+	questionTextBoxDisabled: boolean
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -23,6 +25,20 @@ export class ChatWindow extends ItemView {
 
 	getDisplayText() {
 		return 'AI Chat';//ToDo: Update to something meaningful
+	}
+
+	disableInput(){
+		this.questionTextBoxDisabled = true
+		this.setInputDisabledState()
+	}
+
+	enableInput(){
+		this.questionTextBoxDisabled = false;
+		this.setInputDisabledState()
+	}
+
+	setInputDisabledState() {
+		this.questionTextbox.disabled = this.questionTextBoxDisabled;
 	}
 
 	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
@@ -60,12 +76,13 @@ export class ChatWindow extends ItemView {
 
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });
-		const question = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+		this.questionTextbox = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+		this.setInputDisabledState()
 
 		//ToDo: Add support for custom buttons with prompts configurable in settings
 		const sendButton = questionBox.createEl("button", {text: "Send"})
 		sendButton.addEventListener("click", async () => {
-			await this.generateConvo(question, conversationBox)
+			await this.generateConvo(this.questionTextbox, conversationBox)
 		})
 
 		const saveButton = questionBox.createEl("button", {text: "Save"})

@@ -3,11 +3,11 @@ import {PluginSettings} from "../types";
 import OllamaPlugin from "../../main";
 
 export class OllamaWrapper{
-	settings: PluginSettings;
+	plugin: OllamaPlugin;
 	context: number[]
 
 	constructor(plugin: OllamaPlugin, initialContext?: string) {
-		this.settings = plugin.settings;
+		this.plugin = plugin;
 		if(initialContext && initialContext.length > 0){
 			this.setupInitialContext(initialContext)
 		}
@@ -17,9 +17,9 @@ export class OllamaWrapper{
 		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
 
-		//ToDo: Disable input, until initial call completed - Disable here
+		this.plugin.view.disableInput(); //ToDo: Add a loading gif or something & remove when input is enabled again
 		this.askQuestion(prompt).then(
-			//ToDo: Disable input, until initial call completed - Re-enable here
+			() => this.plugin.view.enableInput()
 		);
 	}
 
@@ -28,7 +28,7 @@ export class OllamaWrapper{
 
 		await requestUrl({
 			method: "GET",
-			url: `${this.settings.ollamaURL}/api/tags`,
+			url: `${this.plugin.settings.ollamaURL}/api/tags`,
 		}).then(result => {
 			output = result.json.models.map((model: { name: string; }) => model.name)
 		})
@@ -41,13 +41,13 @@ export class OllamaWrapper{
 
 		await requestUrl({
 			method: "POST",
-			url: `${this.settings.ollamaURL}/api/generate`,
+			url: `${this.plugin.settings.ollamaURL}/api/generate`,
 			body: JSON.stringify({
 				prompt: question,
 				context: this.context,
-				model: this.settings.aiModel,
+				model: this.plugin.settings.aiModel,
 				options: {
-					temperature: this.settings.temperature
+					temperature: this.plugin.settings.temperature
 				},
 				stream: false,
 			}),
