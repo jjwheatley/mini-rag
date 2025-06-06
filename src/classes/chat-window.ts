@@ -50,17 +50,23 @@ export class ChatWindow extends ItemView {
 		}
 	}
 
-	async generateConvo(questionTextArea:HTMLTextAreaElement, conversation: HTMLDivElement) {
+	scrollToBottomOfElement(element: Element) {
+		element.scrollTop = element.scrollHeight;
+	}
+
+	async generateConvo(questionTextArea:HTMLTextAreaElement, conversation: HTMLDivElement, container: Element) {
 		// Move Query from textArea to Conversation
 		const query = questionTextArea.value
 		questionTextArea.value = '';
 		await this.addToConversation(conversation, query, false)
 		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
+		this.scrollToBottomOfElement(container)
 
 		// Query AI & add response to conversation
 		const answer = await this.plugin.ai.askQuestion(query)
 		await this.addToConversation(conversation, answer, true)
 		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
+		this.scrollToBottomOfElement(container)
 	}
 
 	resetChat(chatSubject?: string){
@@ -82,7 +88,7 @@ export class ChatWindow extends ItemView {
 		//ToDo: Add support for custom buttons with prompts configurable in settings
 		const sendButton = questionBox.createEl("button", {text: "Send"})
 		sendButton.addEventListener("click", async () => {
-			await this.generateConvo(this.questionTextbox, conversationBox)
+			await this.generateConvo(this.questionTextbox, conversationBox, container)
 		})
 
 		const saveButton = questionBox.createEl("button", {text: "Save"})
