@@ -110,11 +110,11 @@ export default class OllamaPlugin extends Plugin {
 				.setTitle("Chat with " + this.getModelUserFriendlyName() + " Context-Free")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
+					await this.activateViewInWorkspace(this.app.workspace);
 					//Remove existing context and chat history
 					this.ai = this.spawnAI()
 					this.view.resetChat()
 
-					await this.activateViewInWorkspace(this.app.workspace);
 				});
 		});
 	}
@@ -126,12 +126,11 @@ export default class OllamaPlugin extends Plugin {
 				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
+					await this.activateViewInWorkspace(this.app.workspace);
 					const context = file ? await this.getFileText(file.path) : ""
 					//Remove existing context and chat history
 					this.ai = this.spawnAI(context)
 					this.view.resetChat(filename)
-
-					await this.activateViewInWorkspace(this.app.workspace);
 				});
 		});
 	}
