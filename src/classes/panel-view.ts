@@ -53,11 +53,17 @@ export class PanelView extends ItemView {
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });
 		const question = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
-		const sendButton = questionBox.createEl("button", {text: "Send"})
 
 		//ToDo: Add support for custom buttons with prompts configurable in settings
+		const sendButton = questionBox.createEl("button", {text: "Send"})
 		sendButton.addEventListener("click", async () => {
 			await this.generateConvo(question, conversationBox)
+		})
+
+		const saveButton = questionBox.createEl("button", {text: "Save"})
+
+		saveButton.addEventListener("click", async () => {
+			await this.plugin.saveChat()
 		})
 	}
 

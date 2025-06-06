@@ -3,13 +3,28 @@ import {SettingTab} from "./src/classes/settings-tab";
 import {PanelView} from "./src/classes/panel-view";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
-import {ICON_NAME, VIEW_TYPE} from "./src/constants";
+import {FOLDER_NAME, ICON_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 
 export default class OllamaPlugin extends Plugin {
 	settings: PluginSettings;
 	view: PanelView;
 	ai: OllamaWrapper
+
+	isFolderPath(path: string): boolean {
+		return this.app.vault.getFolderByPath(path) != null;
+	}
+
+	async createFolder(path: string) {
+		await this.app.vault.createFolder(path);
+	}
+
+	async saveChat() {
+ 		if(!this.isFolderPath(FOLDER_NAME)){
+			await this.createFolder(FOLDER_NAME);
+		}
+
+	}
 
 	async onload() {
 		await this.loadSettings()
