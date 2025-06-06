@@ -68,16 +68,17 @@ export default class OllamaPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingTab(this.app, this));
 
-		// Register menu items to allow passing notes as context
-		this.registerEvent(
-			this.app.workspace.on("file-menu", (menu, file) => {
-				this.registerMenuItem(menu, file)// Register a file menu item
-			})
-		);
+		// Register menu item for a triple-dot file menu & right-click menu within the left sidebar
+		// this.registerEvent(
+		// 	this.app.workspace.on("file-menu", (menu, file) => {
+		// 		this.registerMenuItem(menu, file)
+		// 	})
+		// );
 
+		// Register menu item for right-click "context" menu, within the file view
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
-				this.registerMenuItem(menu, file)// Register a view menu item
+				if(file) this.registerMenuItem(menu, file)
 			})
 		);
 	}
@@ -95,9 +96,23 @@ export default class OllamaPlugin extends Plugin {
 		return `${this.settings.aiModel.charAt(0).toUpperCase()}${this.settings.aiModel.slice(1, this.settings.aiModel.indexOf(':'))}`;
 	}
 
-	registerMenuItem(menu: Menu, file: TAbstractFile | null){
+	isMarkdownFilename(filename: string) {
+		return filename.endsWith(".md");
+	}
+
+	getFilenameWithoutExtension(file: TAbstractFile){
+		const isMarkdownFile = this.isMarkdownFilename(file.name)
+		if(isMarkdownFile){
+			return file.name.slice(0,-3)
+		}else{
+			return file.name;
+		}
+	}
+
+
+	registerMenuItem(menu: Menu, file: TAbstractFile){
 		menu.addItem((item) => {
-			const filename = file?.name.slice(0,-3)
+			const filename = this.getFilenameWithoutExtension(file)
 			item
 				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
