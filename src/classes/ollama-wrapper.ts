@@ -1,5 +1,4 @@
 import {requestUrl} from "obsidian";
-import {PluginSettings} from "../types";
 import OllamaPlugin from "../../main";
 
 export class OllamaWrapper{
