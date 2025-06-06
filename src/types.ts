@@ -4,3 +4,9 @@ export interface PluginSettings {
 	ollamaURL: string;
 	temperature: number;
 }
+
+export interface Message {
+	role: 'user' | 'assistant';
+	content: string;
+	timestamp: string;
+}

@@ -1,6 +1,6 @@
 import {Menu, Notice, Plugin, TAbstractFile, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
-import {PanelView} from "./src/classes/panel-view";
+import {ChatWindow} from "./src/classes/chat-window";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
 import {FOLDER_NAME, ICON_NAME, VIEW_TYPE} from "./src/constants";
@@ -8,7 +8,7 @@ import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 
 export default class OllamaPlugin extends Plugin {
 	settings: PluginSettings;
-	view: PanelView;
+	view: ChatWindow;
 	ai: OllamaWrapper
 
 	isFolderPath(path: string): boolean {
@@ -26,13 +26,19 @@ export default class OllamaPlugin extends Plugin {
 		}
 	}
 
+
 	async saveChat() {
  		if(!this.isFolderPath(FOLDER_NAME)){
 			await this.createFolder(FOLDER_NAME);
 		}
 
 		const filename = FOLDER_NAME +'/'+ this.view.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
-		const content = '';//ToDo: Get chat & possibly metadata (context)
+
+		let content = "## Chat \n";
+		for(const message of this.view.messages){
+			content += message.role + "@" +message.timestamp + "\n";
+			content += "- "+message.content+"\n";
+		}
 
 		await this.deleteFileIfExists(filename);
 		await this.app.vault.create(filename, content)
@@ -47,7 +53,7 @@ export default class OllamaPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE,
 			(leaf) => {
-				this.view = new PanelView(leaf, this)
+				this.view = new ChatWindow(leaf, this)
 				return this.view
 			}
 		);

@@ -1,16 +1,20 @@
 import {ItemView, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
+import {Message} from "../types";
+import {getTimestampFromDate} from "../utils";
 
-export class PanelView extends ItemView {
+export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
 	chatStarted: Date;
+	messages: Message[];
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
 		this.icon = ICON_NAME
 		this.plugin = plugin;
 		this.chatStarted = new Date();
+		this.messages = [];
 	}
 
 	getViewType() {
@@ -18,7 +22,7 @@ export class PanelView extends ItemView {
 	}
 
 	getDisplayText() {
-		return 'AI Chat';
+		return 'AI Chat';//ToDo: Update to something meaningful
 	}
 
 	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
@@ -34,16 +38,17 @@ export class PanelView extends ItemView {
 		const query = questionTextArea.value
 		questionTextArea.value = '';
 		await this.addToConversation(conversation, query, false)
+		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
 
 		// Query AI & add response to conversation
-		// console.log("Sending... " + query);
 		const answer = await this.plugin.ai.askQuestion(query)
-		// console.log("Answer Received... ", answer)
 		await this.addToConversation(conversation, answer, true)
+		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
 	}
 
 	resetChat(chatSubject?: string){
 		this.chatStarted = new Date();
+		this.messages = [];
 		const container = this.containerEl.children[1];
 		container.empty();
 		container.classList.add("panelViewContainer");
