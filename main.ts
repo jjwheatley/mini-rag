@@ -58,16 +58,10 @@ export default class OllamaPlugin extends Plugin {
 			}
 		);
 
-		this.addRibbonIcon(ICON_NAME, 'Ask Ollama (without context)', () => {
-			//Remove existing context and chat history
-			this.ai = this.spawnAI()
-			this.view.resetChat()
-			this.activateViewInWorkspace(this.app.workspace);
-		});
-
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingTab(this.app, this));
 
+		// ToDo: Re-enable this & pass all files within directory clicked as context
 		// Register menu item for a triple-dot file menu & right-click menu within the left sidebar
 		// this.registerEvent(
 		// 	this.app.workspace.on("file-menu", (menu, file) => {
@@ -78,7 +72,8 @@ export default class OllamaPlugin extends Plugin {
 		// Register menu item for right-click "context" menu, within the file view
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
-				if(file) this.registerMenuItem(menu, file)
+				this.registerMenuItemGeneralChats(menu)
+				if(file) this.registerMenuItemForContextChats(menu, file)
 			})
 		);
 	}
@@ -109,8 +104,22 @@ export default class OllamaPlugin extends Plugin {
 		}
 	}
 
+	registerMenuItemGeneralChats(menu: Menu){
+		menu.addItem((item) => {
+			item
+				.setTitle("Chat with " + this.getModelUserFriendlyName() + " (without context) ")
+				.setIcon(ICON_NAME)
+				.onClick(async () => {
+					//Remove existing context and chat history
+					this.ai = this.spawnAI()
+					this.view.resetChat()
 
-	registerMenuItem(menu: Menu, file: TAbstractFile){
+					await this.activateViewInWorkspace(this.app.workspace);
+				});
+		});
+	}
+
+	registerMenuItemForContextChats(menu: Menu, file: TAbstractFile){
 		menu.addItem((item) => {
 			const filename = this.getFilenameWithoutExtension(file)
 			item
