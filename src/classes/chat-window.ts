@@ -69,33 +69,54 @@ export class ChatWindow extends ItemView {
 		this.scrollToBottomOfElement(container)
 	}
 
-	resetChat(chatSubject?: string){
-		this.chatStarted = new Date();
-		this.messages = [];
-		const container = this.containerEl.children[1];
-		container.empty();
-		container.classList.add("panelViewContainer");
-
+	addConversationBox(container: Element, chatSubject?: string){
 		const conversationBox = container.createEl("div", {cls: "conversationBox"});
 		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
 		conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
+		return conversationBox;
+	}
+
+	addQuestionBox(container: Element){
 
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });
 		this.questionTextbox = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
 		this.setInputDisabledState()
+		return questionBox;
+	}
 
-		//ToDo: Add support for custom buttons with prompts configurable in settings
+	addSendButton(questionBox: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
 		const sendButton = questionBox.createEl("button", {text: "Send"})
 		sendButton.addEventListener("click", async () => {
-			await this.generateConvo(this.questionTextbox, conversationBox, container)
+			await this.generateConvo(this.questionTextbox, conversationBox, chatContainer)
 		})
+	}
 
+	addSaveButton(questionBox: HTMLDivElement) {
 		const saveButton = questionBox.createEl("button", {text: "Save"})
-
 		saveButton.addEventListener("click", async () => {
 			await this.plugin.saveChat()
 		})
+	}
+
+	resetChatContainer(){
+		const containerElement = this.containerEl.children[1];
+		containerElement.empty();
+		containerElement.classList.add("panelViewContainer");
+		return containerElement;
+	}
+
+	resetChat(chatSubject?: string){
+		this.chatStarted = new Date();
+		this.messages = [];
+
+		const chatContainer = this.resetChatContainer()
+		const conversationBox = this.addConversationBox(chatContainer, chatSubject);
+		const questionBox = this.addQuestionBox(chatContainer);
+
+		//ToDo: Add support for custom buttons with prompts configurable in settings
+		this.addSendButton(questionBox, conversationBox, chatContainer);
+		this.addSaveButton(questionBox)
 	}
 
 	async onOpen() {
