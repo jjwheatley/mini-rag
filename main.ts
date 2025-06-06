@@ -34,14 +34,14 @@ export default class OllamaPlugin extends Plugin {
 
 		const filename = FOLDER_NAME +'/'+ this.view.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
 
-		let content = "## Chat \n";
+		const content: string[] = ["## Chat"]
 		for(const message of this.view.messages){
-			content += message.role + "@" +message.timestamp + "\n";
-			content += "- "+message.content+"\n";
+			content.push(message.role + "@" +message.timestamp);
+			content.push("- "+message.content);
 		}
 
 		await this.deleteFileIfExists(filename);
-		await this.app.vault.create(filename, content)
+		await this.app.vault.create(filename, content.join("\n"));
 
 		new Notice('Chat saved in: ' + filename);
 	}
