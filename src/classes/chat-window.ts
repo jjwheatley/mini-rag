@@ -76,27 +76,33 @@ export class ChatWindow extends ItemView {
 		return conversationBox;
 	}
 
-	addQuestionBox(container: Element){
-
-		const questionBox = container.createEl("div")
-		questionBox.createEl('h4', { text: 'Ask a question...' });
-		this.questionTextbox = questionBox.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+	addQuestionArea(container: Element){
+		const questionArea = container.createEl("div")
+		questionArea.createEl('h4', { text: 'Ask a question...' });
+		this.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
 		this.setInputDisabledState()
-		return questionBox;
+		return questionArea;
 	}
 
 	addSendButton(questionBox: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
-		const sendButton = questionBox.createEl("button", {text: "Send"})
+		const sendButton = questionBox.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
 		sendButton.addEventListener("click", async () => {
 			await this.generateConvo(this.questionTextbox, conversationBox, chatContainer)
 		})
 	}
 
 	addSaveButton(questionBox: HTMLDivElement) {
-		const saveButton = questionBox.createEl("button", {text: "Save"})
+		const saveButton = questionBox.createEl("button", {text: "Save"});
 		saveButton.addEventListener("click", async () => {
 			await this.plugin.saveChat()
 		})
+	}
+
+	addButtonAreas(container: Element) {
+		const parent = container.createEl("div", {cls: "buttonArea"});
+		const left = parent.createEl("div", {cls: "buttonArea left"});
+		const right = parent.createEl("div", {cls: "buttonArea left"});
+		return [left, right];
 	}
 
 	resetChatContainer(){
@@ -112,11 +118,12 @@ export class ChatWindow extends ItemView {
 
 		const chatContainer = this.resetChatContainer()
 		const conversationBox = this.addConversationBox(chatContainer, chatSubject);
-		const questionBox = this.addQuestionBox(chatContainer);
+		const questionArea = this.addQuestionArea(chatContainer);
 
+		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
 		//ToDo: Add support for custom buttons with prompts configurable in settings
-		this.addSendButton(questionBox, conversationBox, chatContainer);
-		this.addSaveButton(questionBox)
+		this.addSaveButton(leftButtonArea)
+		this.addSendButton(rightButtonArea, conversationBox, chatContainer);
 	}
 
 	async onOpen() {

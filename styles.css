@@ -43,4 +43,11 @@ If your plugin does not need CSS, delete this file.
 	padding: 8px;
 }
 
+.buttonArea{
+	display: flex;
+	justify-content: space-between;
+}
 
+.ollamaPluginSendButton.ollamaPluginSendButton{
+	background-color: green;
+}
