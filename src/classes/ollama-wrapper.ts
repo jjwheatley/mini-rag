@@ -1,5 +1,6 @@
 import {requestUrl} from "obsidian";
 import OllamaPlugin from "../../main";
+import {ChatWindow} from "./chat-window";
 
 export class OllamaWrapper{
 	plugin: OllamaPlugin;
@@ -16,10 +17,13 @@ export class OllamaWrapper{
 		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
 
-		this.plugin.view.disableInput(); //ToDo: Add a loading gif or something & remove when input is enabled again
-		this.askQuestion(prompt).then(
-			() => this.plugin.view.enableInput()
-		);
+		if(this.plugin.view){
+			this.plugin.view.disableInput(); //ToDo: Add a loading gif or something & remove when input is enabled again
+			this.askQuestion(prompt).then(
+				() => this.plugin.view.enableInput()
+			);
+		}
+
 	}
 
 	async getModelList(){

@@ -54,10 +54,7 @@ export class ChatWindow extends ItemView {
 		element.scrollTop = element.scrollHeight;
 	}
 
-	async generateConvo(questionTextArea:HTMLTextAreaElement, conversation: HTMLDivElement, container: Element) {
-		// Move Query from textArea to Conversation
-		const query = questionTextArea.value
-		questionTextArea.value = '';
+	async generateConvo(query: string, conversation: HTMLDivElement, container: Element) {
 		await this.addToConversation(conversation, query, false)
 		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
 		this.scrollToBottomOfElement(container)
@@ -84,24 +81,34 @@ export class ChatWindow extends ItemView {
 		return questionArea;
 	}
 
-	addSendButton(questionBox: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
-		const sendButton = questionBox.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
+	addSendButton(parentEl: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
+		const sendButton = parentEl.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
 		sendButton.addEventListener("click", async () => {
-			await this.generateConvo(this.questionTextbox, conversationBox, chatContainer)
+			const query = this.questionTextbox.value
+			this.questionTextbox.value = ""
+			await this.generateConvo(query, conversationBox, chatContainer)
 		})
 	}
 
-	addSaveButton(questionBox: HTMLDivElement) {
-		const saveButton = questionBox.createEl("button", {text: "Save"});
+	addSaveButton(parentEl: HTMLDivElement) {
+		const saveButton = parentEl.createEl("button", {text: "Save"});
 		saveButton.addEventListener("click", async () => {
 			await this.plugin.saveChat()
 		})
 	}
 
+	addSummarizeButton(parentEl: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
+		const summarizeButton = parentEl.createEl("button", {text: "Summarize"})
+		summarizeButton.addEventListener("click", async () => {
+			await this.generateConvo("Summarize the file", conversationBox, chatContainer)
+		})
+
+	}
+
 	addButtonAreas(container: Element) {
 		const parent = container.createEl("div", {cls: "buttonArea"});
 		const left = parent.createEl("div", {cls: "buttonArea left"});
-		const right = parent.createEl("div", {cls: "buttonArea left"});
+		const right = parent.createEl("div", {cls: "buttonArea right"});
 		return [left, right];
 	}
 
@@ -121,8 +128,9 @@ export class ChatWindow extends ItemView {
 		const questionArea = this.addQuestionArea(chatContainer);
 
 		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
-		//ToDo: Add support for custom buttons with prompts configurable in settings
 		this.addSaveButton(leftButtonArea)
+		if(chatSubject) this.addSummarizeButton(leftButtonArea, conversationBox, chatContainer)
+
 		this.addSendButton(rightButtonArea, conversationBox, chatContainer);
 	}
 
