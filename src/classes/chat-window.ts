@@ -1,4 +1,4 @@
-import {ItemView, WorkspaceLeaf} from "obsidian";
+import {ItemView, Notice, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
 import {Message} from "../types";
@@ -42,10 +42,11 @@ export class ChatWindow extends ItemView {
 	}
 
 	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
-		if (!isResponse) {
-			conversation.createEl('div', { text: text, cls: "ollamaPluginConvoBox query" });
-		}else{
-			conversation.createEl('div', { text: text, cls: "ollamaPluginConvoBox response" });
+		const element = conversation.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
+
+		element.onclick = async () => {
+			await navigator.clipboard.writeText(text);
+			new Notice("Message Copied")
 		}
 	}
 
