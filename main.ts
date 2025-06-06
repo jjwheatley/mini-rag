@@ -1,11 +1,10 @@
-import {Menu, Plugin, TAbstractFile} from 'obsidian';
+import {Menu, Plugin, TAbstractFile, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {PanelView} from "./src/classes/panel-view";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
 import {ICON_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
-import {activateViewInWorkspace} from "./src/utils";
 
 export default class OllamaPlugin extends Plugin {
 	settings: PluginSettings;
@@ -28,7 +27,7 @@ export default class OllamaPlugin extends Plugin {
 			//Remove existing context and chat history
 			this.ai = this.spawnAI()
 			this.view.resetChat()
-			activateViewInWorkspace(this.app.workspace);
+			this.activateViewInWorkspace(this.app.workspace);
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -73,9 +72,26 @@ export default class OllamaPlugin extends Plugin {
 					this.ai = this.spawnAI(context)
 					this.view.resetChat(filename)
 
-					await activateViewInWorkspace(this.app.workspace);
+					await this.activateViewInWorkspace(this.app.workspace);
 				});
 		});
+	}
+
+	async activateViewInWorkspace(workspace: Workspace){
+		let leaf: WorkspaceLeaf;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
+
+		if (leaves.length > 0) { // A leaf with our view already exists, use it
+			leaf = leaves[0];
+			await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
+		} else { // View isn't found in workspace, create in sidebar as new leaf
+			const rightMostLeaf = workspace.getRightLeaf(false);
+			if(rightMostLeaf) {
+				leaf = rightMostLeaf
+				await leaf.setViewState({type: VIEW_TYPE, active: true});
+				await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
+			}
+		}
 	}
 
 	async getFileText(contextFilePath: string){
@@ -90,5 +106,6 @@ export default class OllamaPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
 }
 
