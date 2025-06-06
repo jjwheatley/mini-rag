@@ -107,7 +107,7 @@ export default class OllamaPlugin extends Plugin {
 	registerMenuItemGeneralChats(menu: Menu){
 		menu.addItem((item) => {
 			item
-				.setTitle("Chat with " + this.getModelUserFriendlyName() + " (without context) ")
+				.setTitle("Chat with " + this.getModelUserFriendlyName() + " Context-Free")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					//Remove existing context and chat history

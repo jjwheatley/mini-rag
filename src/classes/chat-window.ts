@@ -72,8 +72,7 @@ export class ChatWindow extends ItemView {
 
 		const conversationBox = container.createEl("div", {cls: "conversationBox"});
 		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
-		if(chatSubject)
-			conversationBox.createEl('div', { text: 'Subject: ' + chatSubject});
+		conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
 
 		const questionBox = container.createEl("div")
 		questionBox.createEl('h4', { text: 'Ask a question...' });
