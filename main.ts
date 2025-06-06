@@ -1,4 +1,4 @@
-import {Menu, Plugin, TAbstractFile, Workspace, WorkspaceLeaf} from 'obsidian';
+import {Menu, Notice, Plugin, TAbstractFile, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {PanelView} from "./src/classes/panel-view";
 import {DEFAULT_SETTINGS} from "./src/defaults";
@@ -19,11 +19,25 @@ export default class OllamaPlugin extends Plugin {
 		await this.app.vault.createFolder(path);
 	}
 
+	async deleteFileIfExists(path: string) {
+		const file = this.app.vault.getFileByPath(path)
+		if(file) {
+			await this.app.vault.delete(file)
+		}
+	}
+
 	async saveChat() {
  		if(!this.isFolderPath(FOLDER_NAME)){
 			await this.createFolder(FOLDER_NAME);
 		}
 
+		const filename = FOLDER_NAME +'/'+ this.view.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
+		const content = '';//ToDo: Get chat & possibly metadata (context)
+
+		await this.deleteFileIfExists(filename);
+		await this.app.vault.create(filename, content)
+
+		new Notice('Chat saved in: ' + filename);
 	}
 
 	async onload() {

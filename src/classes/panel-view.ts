@@ -4,11 +4,13 @@ import OllamaPlugin from "../../main";
 
 export class PanelView extends ItemView {
 	plugin: OllamaPlugin;
+	chatStarted: Date;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
 		this.icon = ICON_NAME
 		this.plugin = plugin;
+		this.chatStarted = new Date();
 	}
 
 	getViewType() {
@@ -41,6 +43,7 @@ export class PanelView extends ItemView {
 	}
 
 	resetChat(chatSubject?: string){
+		this.chatStarted = new Date();
 		const container = this.containerEl.children[1];
 		container.empty();
 		container.classList.add("panelViewContainer");
