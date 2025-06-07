@@ -9,7 +9,8 @@ export class ChatWindow extends ItemView {
 	chatStarted: Date;
 	messages: Message[];
 	questionTextbox: HTMLTextAreaElement
-	questionTextBoxDisabled: boolean
+	buttons: HTMLButtonElement[];
+	uiDisabled: boolean
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -17,6 +18,7 @@ export class ChatWindow extends ItemView {
 		this.plugin = plugin;
 		this.chatStarted = new Date();
 		this.messages = [];
+		this.buttons = [];
 	}
 
 	getViewType() {
@@ -28,17 +30,26 @@ export class ChatWindow extends ItemView {
 	}
 
 	disableInput(){
-		this.questionTextBoxDisabled = true
-		this.setInputDisabledState()
+		this.uiDisabled = true
+		this.setUIDisabledState()
 	}
 
 	enableInput(){
-		this.questionTextBoxDisabled = false;
-		this.setInputDisabledState()
+		this.uiDisabled = false;
+		this.setUIDisabledState()
 	}
 
-	setInputDisabledState() {
-		this.questionTextbox.disabled = this.questionTextBoxDisabled;
+	setUIDisabledState() {
+		this.questionTextbox.disabled = this.uiDisabled;
+		const buttons = this.buttons;
+
+		for(let i = 0; i < buttons.length; i++){
+			if(this.uiDisabled){
+				buttons[i].disabled = true
+			}else{
+				buttons[i].removeAttribute('disabled');
+			}
+		}
 	}
 
 	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
@@ -77,32 +88,40 @@ export class ChatWindow extends ItemView {
 		const questionArea = container.createEl("div")
 		questionArea.createEl('h4', { text: 'Ask a question...' });
 		this.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
-		this.setInputDisabledState()
 		return questionArea;
 	}
 
 	addSendButton(parentEl: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
 		const sendButton = parentEl.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
 		sendButton.addEventListener("click", async () => {
-			const query = this.questionTextbox.value
-			this.questionTextbox.value = ""
-			await this.generateConvo(query, conversationBox, chatContainer)
+			if(!this.uiDisabled){
+				const query = this.questionTextbox.value
+				this.questionTextbox.value = ""
+				await this.generateConvo(query, conversationBox, chatContainer)
+			}
 		})
+		this.buttons.push(sendButton);
 	}
 
 	addSaveButton(parentEl: HTMLDivElement) {
 		const saveButton = parentEl.createEl("button", {text: "Save"});
+		saveButton.disabled = true
 		saveButton.addEventListener("click", async () => {
-			await this.plugin.saveChat()
+			if(!this.uiDisabled){
+				await this.plugin.saveChat()
+			}
 		})
+		this.buttons.push(saveButton);
 	}
 
 	addSummarizeButton(parentEl: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
 		const summarizeButton = parentEl.createEl("button", {text: "Summarize"})
 		summarizeButton.addEventListener("click", async () => {
-			await this.generateConvo("Summarize the file", conversationBox, chatContainer)
+			if(!this.uiDisabled) {
+				await this.generateConvo("Summarize the file", conversationBox, chatContainer)
+			}
 		})
-
+		this.buttons.push(summarizeButton);
 	}
 
 	addButtonAreas(container: Element) {
@@ -119,19 +138,27 @@ export class ChatWindow extends ItemView {
 		return containerElement;
 	}
 
+	clearButtonList(){
+		this.buttons = [];
+	}
+
 	resetChat(chatSubject?: string){
+		// Clear/remove previous elements
 		this.chatStarted = new Date();
 		this.messages = [];
+		this.clearButtonList();
+		const chatContainer = this.resetChatContainer() // Fetch a fresh chat container
 
-		const chatContainer = this.resetChatContainer()
+		// Rebuild UI
 		const conversationBox = this.addConversationBox(chatContainer, chatSubject);
 		const questionArea = this.addQuestionArea(chatContainer);
-
 		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
 		this.addSaveButton(leftButtonArea)
 		if(chatSubject) this.addSummarizeButton(leftButtonArea, conversationBox, chatContainer)
-
 		this.addSendButton(rightButtonArea, conversationBox, chatContainer);
+
+		//Ensure UI state is respected
+		this.setUIDisabledState()
 	}
 
 	async onOpen() {
