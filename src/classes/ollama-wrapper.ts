@@ -1,5 +1,6 @@
 import {requestUrl} from "obsidian";
 import OllamaPlugin from "../../main";
+import {CONTEXT_TEMPLATE, OLLAMA_API} from "../constants";
 
 export class OllamaWrapper{
 	plugin: OllamaPlugin;
@@ -13,18 +14,15 @@ export class OllamaWrapper{
 	}
 
 	sendInitialContext(initialContext: string){
-		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
-		prompt+= "\n\n\n The Text: " + initialContext + "\n"
-		if(this.plugin.ui){
-			this.plugin.ui.freezeUI();
-			this.sendQuestion(prompt).then(() => this.plugin.ui.unfreezeUI());
-		}
+		const prompt = CONTEXT_TEMPLATE + initialContext
+		this.plugin.ui.freezeUI();
+		this.sendQuestion(prompt).then(() => this.plugin.ui.unfreezeUI());
 	}
 
 	async getModelList(){
 		const output = await requestUrl({
 			method: "GET",
-			url: `${this.plugin.settings.ollamaURL}/api/tags`,
+			url: `${this.plugin.settings.ollamaURL}${OLLAMA_API.tags}`,
 		}).then(result => result.json.models.map((model: { name: string; }) => model.name))
 
 		output.sort((a: string, b:string) => a.localeCompare(b));
@@ -36,7 +34,7 @@ export class OllamaWrapper{
 
 		await requestUrl({
 			method: "POST",
-			url: `${this.plugin.settings.ollamaURL}/api/generate`,
+			url: `${this.plugin.settings.ollamaURL}${OLLAMA_API.generate}`,
 			body: JSON.stringify({
 				prompt: question,
 				context: this.context,
