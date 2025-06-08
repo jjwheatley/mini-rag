@@ -9,9 +9,9 @@ import {FileManager} from "./src/classes/file-manager";
 import {firstToUpper} from "./src/utils";
 
 export default class OllamaPlugin extends Plugin {
-	settings: PluginSettings;
-	view: ChatWindow;
+	ui: ChatWindow;
 	ai: OllamaWrapper
+	settings: PluginSettings;
 	fileManager: FileManager;
 
 	async onload() {
@@ -54,8 +54,8 @@ export default class OllamaPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE,
 			(leaf) => {
-				this.view = new ChatWindow(leaf, this)
-				return this.view
+				this.ui = new ChatWindow(leaf, this)
+				return this.ui
 			}
 		);
 	}
@@ -69,7 +69,7 @@ export default class OllamaPlugin extends Plugin {
 					await this.activateViewInWorkspace(this.app.workspace);
 					//Remove existing context and chat history
 					this.loadAI()
-					this.view.resetChat()
+					this.ui.resetChat()
 
 				});
 		});
@@ -86,7 +86,7 @@ export default class OllamaPlugin extends Plugin {
 					const context = file ? await this.fileManager.getFileText(file.path) : ""
 					//Remove existing context and chat history
 					this.loadAI(context)
-					this.view.resetChat(filename)
+					this.ui.resetChat(filename)
 				});
 		});
 	}
@@ -96,10 +96,10 @@ export default class OllamaPlugin extends Plugin {
 			await this.fileManager.createFolder(FOLDER_NAME);
 		}
 
-		const filename = FOLDER_NAME +'/'+ this.view.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
+		const filename = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
 
 		const content: string[] = ["## Chat"]
-		for(const message of this.view.messages){
+		for(const message of this.ui.messages){
 			content.push(message.role + "@" +message.timestamp);
 			content.push("- "+message.content);
 		}

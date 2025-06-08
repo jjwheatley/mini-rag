@@ -15,9 +15,9 @@ export class OllamaWrapper{
 	sendInitialContext(initialContext: string){
 		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
-		if(this.plugin.view){
-			this.plugin.view.freezeUI();
-			this.sendQuestion(prompt).then(() => this.plugin.view.unfreezeUI());
+		if(this.plugin.ui){
+			this.plugin.ui.freezeUI();
+			this.sendQuestion(prompt).then(() => this.plugin.ui.unfreezeUI());
 		}
 	}
 
