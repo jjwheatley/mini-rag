@@ -17,9 +17,9 @@ export class OllamaWrapper{
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
 
 		if(this.plugin.view){
-			this.plugin.view.disableInput();
+			this.plugin.view.freezeUI();
 			this.askQuestion(prompt).then(
-				() => this.plugin.view.enableInput()
+				() => this.plugin.view.unfreezeUI()
 			);
 		}
 

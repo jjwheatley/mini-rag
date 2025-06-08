@@ -30,12 +30,12 @@ export class ChatWindow extends ItemView {
 		return 'AI Chat';//ToDo: Update to something meaningful
 	}
 
-	disableInput(){
+	freezeUI(){
 		this.uiDisabled = true
 		this.setUIDisabledState()
 	}
 
-	enableInput(){
+	unfreezeUI(){
 		this.uiDisabled = false;
 		this.setUIDisabledState()
 	}
