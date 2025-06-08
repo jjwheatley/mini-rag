@@ -26,15 +26,12 @@ export class OllamaWrapper{
 	}
 
 	async getModelList(){
-		let output: string[] = []
-
-		await requestUrl({
+		const output = await requestUrl({
 			method: "GET",
 			url: `${this.plugin.settings.ollamaURL}/api/tags`,
-		}).then(result => {
-			output = result.json.models.map((model: { name: string; }) => model.name)
-		})
+		}).then(result => result.json.models.map((model: { name: string; }) => model.name))
 
+		output.sort((a: string, b:string) => a.localeCompare(b));
 		return output
 	}
 

@@ -10,35 +10,7 @@ export class SettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	async getModelOptions() {
-		const result = await this.plugin.ai.getModelList()
-		result.sort((a, b) => a.localeCompare(b));
-		return result;
-	}
-
-	addModelSelector(container: HTMLElement) {
-		new Setting(container)
-			.setName('Model')
-			.setDesc('The model you want to chat with')
-			.addDropdown((dropdown) => {
-				this.getModelOptions().then(options => {
-					for(let i =0; i< options.length; i++) {
-						const opt = options[i]
-						dropdown.addOption(opt, opt)
-					}
-					dropdown.setValue(this.plugin.settings.aiModel)
-				})
-
-
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.aiModel = value
-					await this.plugin.saveSettings();
-				});
-			});
-	}
-
 	addOllamaURL(container: HTMLElement) {
-
 		new Setting(container)
 			.setName('Ollama URL')
 			.setDesc('The local URL of the model you want to chat with')
@@ -49,6 +21,26 @@ export class SettingTab extends PluginSettingTab {
 					this.plugin.settings.ollamaURL = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+
+	addModelSelector(container: HTMLElement) {
+		new Setting(container)
+			.setName('Model')
+			.setDesc('The model you want to chat with')
+			.addDropdown((dropdown) => {
+				this.plugin.ai.getModelList().then(options => {
+					for(let i =0; i< options.length; i++) {
+						const opt = options[i]
+						dropdown.addOption(opt, opt)
+					}
+					dropdown.setValue(this.plugin.settings.aiModel)
+				})
+
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.aiModel = value
+					await this.plugin.saveSettings();
+				});
+			});
 	}
 
 	addHyperParameterTemperature(container: HTMLElement) {
@@ -68,14 +60,9 @@ export class SettingTab extends PluginSettingTab {
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
-
 		this.addOllamaURL(containerEl);
 		this.addModelSelector(containerEl);
 		this.addHyperParameterTemperature(containerEl);
-
-
-
 	}
 }
