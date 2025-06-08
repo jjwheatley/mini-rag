@@ -19,3 +19,4 @@ export const getTimestampFromDate = (date: Date): string => {
 	);
 }
 
+export const firstToUpper = (str: string) =>	`${str.charAt(0).toUpperCase()}${str.slice(1)}`
