@@ -7,17 +7,20 @@ import {FOLDER_NAME, ICON_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 import {FileManager} from "./src/classes/file-manager";
 import {firstToUpper} from "./src/utils";
+import {Contextualizer} from "./src/classes/contextualizer";
 
 export default class OllamaPlugin extends Plugin {
 	ui: ChatWindow;
 	ai: OllamaWrapper
+	context: Contextualizer
 	settings: PluginSettings;
 	fileManager: FileManager;
 
 	async onload() {
 		await this.loadSettings()
-		this.loadAI()
 		this.loadFileManager()
+		this.loadContextualizer()
+		this.loadAI()
 		this.registerChatWindow()
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -70,7 +73,6 @@ export default class OllamaPlugin extends Plugin {
 					//Remove existing context and chat history
 					this.loadAI()
 					this.ui.resetChat()
-
 				});
 		});
 	}
@@ -83,9 +85,10 @@ export default class OllamaPlugin extends Plugin {
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					await this.activateViewInWorkspace(this.app.workspace);
-					const context = file ? await this.fileManager.readFileText(file.path) : ""
 					//Remove existing context and chat history
-					this.loadAI(context)
+					this.loadContextualizer()
+					await this.context.addFileToContext(file)
+					this.loadAI(this.context.getContextAsText())
 					this.ui.resetChat(filename)
 				});
 		});
@@ -128,6 +131,10 @@ export default class OllamaPlugin extends Plugin {
 
 	loadAI(initialContext?: string){
 		this.ai = new OllamaWrapper(this, initialContext ?? '');
+	}
+
+	loadContextualizer(){
+		this.context = new Contextualizer(this)
 	}
 
 	loadFileManager(){
