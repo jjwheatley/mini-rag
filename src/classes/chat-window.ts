@@ -85,7 +85,7 @@ export class ChatWindow extends ItemView {
 		this.scrollToBottomOfElement(container)
 
 		// Query AI & add response to conversation
-		const answer = await this.plugin.ai.askQuestion(query)
+		const answer = await this.plugin.ai.sendQuestion(query)
 		await this.addToConversation(conversation, answer, true)
 		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
 		this.scrollToBottomOfElement(container)

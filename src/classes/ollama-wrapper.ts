@@ -8,21 +8,17 @@ export class OllamaWrapper{
 	constructor(plugin: OllamaPlugin, initialContext?: string) {
 		this.plugin = plugin;
 		if(initialContext && initialContext.length > 0){
-			this.setupInitialContext(initialContext)
+			this.sendInitialContext(initialContext)
 		}
 	}
 
-	setupInitialContext(initialContext: string){
+	sendInitialContext(initialContext: string){
 		let prompt = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n"
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
-
 		if(this.plugin.view){
 			this.plugin.view.freezeUI();
-			this.askQuestion(prompt).then(
-				() => this.plugin.view.unfreezeUI()
-			);
+			this.sendQuestion(prompt).then(() => this.plugin.view.unfreezeUI());
 		}
-
 	}
 
 	async getModelList(){
@@ -35,7 +31,7 @@ export class OllamaWrapper{
 		return output
 	}
 
-	async askQuestion(question: string) {
+	async sendQuestion(question: string) {
 		let output: string = ''
 
 		await requestUrl({
