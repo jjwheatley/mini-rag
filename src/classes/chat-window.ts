@@ -11,6 +11,7 @@ export class ChatWindow extends ItemView {
 	questionTextbox: HTMLTextAreaElement
 	buttons: HTMLButtonElement[];
 	uiDisabled: boolean
+	loader: HTMLSpanElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -39,7 +40,20 @@ export class ChatWindow extends ItemView {
 		this.setUIDisabledState()
 	}
 
+	hideLoader(){
+		this.loader.classList.add("hidden");
+	}
+	showLoader(){
+		this.loader.classList.remove("hidden");
+	}
+
 	setUIDisabledState() {
+		if(this.uiDisabled) {
+			this.showLoader()
+		}else{
+			this.hideLoader()
+		}
+
 		this.questionTextbox.disabled = this.uiDisabled;
 		const buttons = this.buttons;
 
@@ -139,6 +153,10 @@ export class ChatWindow extends ItemView {
 		return [left, right];
 	}
 
+	addLoader(container: Element){
+		this.loader = container.createEl("span", {cls: "loader"});
+	}
+
 	resetChatContainer(){
 		const containerElement = this.containerEl.children[1];
 		containerElement.empty();
@@ -159,6 +177,7 @@ export class ChatWindow extends ItemView {
 
 		// Rebuild UI
 		const conversationBox = this.addConversationBox(chatContainer, chatSubject);
+		this.addLoader(chatContainer)
 		const questionArea = this.addQuestionArea(chatContainer, conversationBox);
 		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
 		this.addSaveButton(leftButtonArea)
