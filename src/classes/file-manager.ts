@@ -1,4 +1,4 @@
-import {TAbstractFile, Vault} from "obsidian";
+import {TAbstractFile, TFile, TFolder, Vault} from "obsidian";
 
 export class FileManager {
 	vault: Vault;
@@ -7,12 +7,16 @@ export class FileManager {
 		this.vault = vault;
 	}
 
-	isFolderPath(path: string): boolean {
-		return this.vault.getFolderByPath(path) != null;
+	isFolder(abstractFile: TAbstractFile) {
+		return (abstractFile instanceof TFolder)
 	}
 
-	isExtensionMarkdown(filename: string) {
-		return filename.endsWith(".md");
+	isFile(abstractFile: TAbstractFile) {
+		return (abstractFile instanceof TFile)
+	}
+
+	isFolderPath(path: string): boolean {
+		return this.vault.getFolderByPath(path) != null;
 	}
 
 	async createFile(filepath: string, content: string) {
@@ -29,10 +33,10 @@ export class FileManager {
 	}
 
 	readFilenameWithoutExtension(file: TAbstractFile){
-		if(this.isExtensionMarkdown(file.name)){
-			return file.name.slice(0,-3)
+		if(this.isFile(file)){
+			return file.name.slice(0, file.name.lastIndexOf("."));
 		}else{
-			return file.name;
+			return file.name;//Return everything, it's a folder
 		}
 	}
 

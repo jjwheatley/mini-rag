@@ -1,4 +1,4 @@
-import {Menu, Notice, Plugin, TAbstractFile, Workspace, WorkspaceLeaf} from 'obsidian';
+import {Menu, Notice, Plugin, TFile, TFolder, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
 import {DEFAULT_SETTINGS} from "./src/defaults";
@@ -26,13 +26,16 @@ export default class OllamaPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingTab(this.app, this));
 
-		// ToDo: Re-enable this & pass all files within directory clicked as context
 		// Register menu item for a triple-dot file menu & right-click menu within the left sidebar
-		// this.registerEvent(
-		// 	this.app.workspace.on("file-menu", (menu, file) => {
-		// 		this.registerMenuItem(menu, file)
-		// 	})
-		// );
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				if (this.fileManager.isFile(file)) { // Single File: Add the same way we do from a note
+					this.addMenuItemForSingleFileContextChats(menu, file as TFile);
+				} else if (this.fileManager.isFolder(file)) { // Folder: Add files individually to context
+					this.addMenuItemForMultiFileContextChats(menu, file as TFolder);
+				}
+			})
+		);
 
 		// Register menu item for right-click "context" menu, within the file view
 		this.registerItemsContextMenuInNotes()
@@ -47,8 +50,8 @@ export default class OllamaPlugin extends Plugin {
 	registerItemsContextMenuInNotes(){
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
-				this.registerMenuItemGeneralChats(menu)
-				if(file) this.registerMenuItemForContextChats(menu, file)
+				this.addMenuItemGeneralChats(menu)
+				if(file) this.addMenuItemForSingleFileContextChats(menu, file)
 			})
 		);
 	}
@@ -63,7 +66,7 @@ export default class OllamaPlugin extends Plugin {
 		);
 	}
 
-	registerMenuItemGeneralChats(menu: Menu){
+	addMenuItemGeneralChats(menu: Menu){
 		menu.addItem((item) => {
 			item
 				.setTitle("Chat with " + this.getModelUserFriendlyName() + " Context-Free")
@@ -77,7 +80,7 @@ export default class OllamaPlugin extends Plugin {
 		});
 	}
 
-	registerMenuItemForContextChats(menu: Menu, file: TAbstractFile){
+	addMenuItemForSingleFileContextChats(menu: Menu, file: TFile){
 		menu.addItem((item) => {
 			const filename = this.fileManager.readFilenameWithoutExtension(file)
 			item
@@ -88,6 +91,23 @@ export default class OllamaPlugin extends Plugin {
 					//Remove existing context and chat history
 					this.loadContextualizer()
 					await this.context.addFileToContext(file)
+					this.loadAI(this.context.getContextAsText())
+					this.ui.resetChat(filename)
+				});
+		});
+	}
+
+	addMenuItemForMultiFileContextChats(menu: Menu, folder: TFolder){
+		menu.addItem((item) => {
+			const filename = this.fileManager.readFilenameWithoutExtension(folder)
+			item
+				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
+				.setIcon(ICON_NAME)
+				.onClick(async () => {
+					await this.activateViewInWorkspace(this.app.workspace);
+					//Remove existing context and chat history
+					this.loadContextualizer()
+					await this.context.addFolderToContext(folder)
 					this.loadAI(this.context.getContextAsText())
 					this.ui.resetChat(filename)
 				});

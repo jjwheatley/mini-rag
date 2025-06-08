@@ -1,11 +1,9 @@
 import OllamaPlugin from "../../main";
-import {TAbstractFile} from "obsidian";
-
+import {TAbstractFile, TFile, TFolder} from "obsidian";
 
 export class Contextualizer {
 	plugin: OllamaPlugin;
 	contextPaths: Map<string, string>;
-
 
 	constructor(plugin: OllamaPlugin) {
 		this.plugin = plugin;
@@ -27,6 +25,26 @@ export class Contextualizer {
 		return results.join('\n\n');
 	}
 
-	// ToDo: Check folder exists, walk it & add content to context using "addFileToContext"
-	// addFolderToContext(folderPath: string){}
+	async addFolderToContext(folder: TFolder){
+		const files = this.recurseChildren(folder);
+		for (const f of files){
+			await this.addFileToContext(f)
+		}
+	}
+
+	recurseChildren(file: TAbstractFile){
+		const res: TFile[] = []
+		if(file instanceof TFolder){
+			for (const f of file.children) {
+				if(f instanceof TFile){
+					res.push(f);
+				}else{
+					res.push(...this.recurseChildren(f))
+				}
+			}
+		}else if(file instanceof TFile){
+			res.push(file)
+		}
+		return res;
+	}
 }
