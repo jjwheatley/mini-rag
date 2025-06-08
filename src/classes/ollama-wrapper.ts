@@ -18,7 +18,7 @@ export class OllamaWrapper{
 		prompt+= "\n\n\n The Text: " + initialContext + "\n"
 
 		if(this.plugin.view){
-			this.plugin.view.disableInput(); //ToDo: Add a loading gif or something & remove when input is enabled again
+			this.plugin.view.disableInput();
 			this.askQuestion(prompt).then(
 				() => this.plugin.view.enableInput()
 			);
