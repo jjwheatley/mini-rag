@@ -84,10 +84,18 @@ export class ChatWindow extends ItemView {
 		return conversationBox;
 	}
 
-	addQuestionArea(container: Element){
+	addQuestionArea(container: Element, conversationBox: HTMLDivElement){
 		const questionArea = container.createEl("div")
 		questionArea.createEl('h4', { text: 'Ask a question...' });
 		this.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+		this.questionTextbox.addEventListener("keyup", async (event) => {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				const query = this.questionTextbox.value
+				this.questionTextbox.value = ""
+				await this.generateConvo(query, conversationBox, container)
+			}
+		})
 		return questionArea;
 	}
 
@@ -151,7 +159,7 @@ export class ChatWindow extends ItemView {
 
 		// Rebuild UI
 		const conversationBox = this.addConversationBox(chatContainer, chatSubject);
-		const questionArea = this.addQuestionArea(chatContainer);
+		const questionArea = this.addQuestionArea(chatContainer, conversationBox);
 		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
 		this.addSaveButton(leftButtonArea)
 		if(chatSubject) this.addSummarizeButton(leftButtonArea, conversationBox, chatContainer)
