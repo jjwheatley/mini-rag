@@ -1,12 +1,3 @@
-/*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
-
 .panelViewContainer{
 	display: flex;
 	flex-direction: column;
@@ -18,29 +9,27 @@ If your plugin does not need CSS, delete this file.
 	height: 100px;
 	resize: none;
 }
+
 .ollamaPluginConvoBox{
 	cursor: pointer;
-}
-.ollamaPluginConvoBox.query{
-	margin-top: 4px;
-	text-align: right;
-	background: green;
+	white-space: pre-line;
 	width: auto;
 	max-width: 90%;
-	justify-self: right;
 	border-radius: 10px;
+	margin-top: 4px;
 	padding: 8px;
 }
 
+.ollamaPluginConvoBox.query{
+	text-align: right;
+	background: green;
+	justify-self: right;
+}
+
 .ollamaPluginConvoBox.response{
-	margin-top: 4px;
 	text-align: left;
 	background: grey;
-	width: auto;
-	max-width: 90%;
 	justify-self: left;
-	border-radius: 10px;
-	padding: 8px;
 }
 
 .buttonArea{
@@ -51,6 +40,7 @@ If your plugin does not need CSS, delete this file.
 .buttonArea.left{
 	gap: 4px;
 }
+
 .ollamaPluginSendButton.ollamaPluginSendButton{
 	background-color: green;
 }
