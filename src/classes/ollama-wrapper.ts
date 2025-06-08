@@ -1,6 +1,5 @@
 import {requestUrl} from "obsidian";
 import OllamaPlugin from "../../main";
-import {ChatWindow} from "./chat-window";
 
 export class OllamaWrapper{
 	plugin: OllamaPlugin;

@@ -26,7 +26,6 @@ export default class OllamaPlugin extends Plugin {
 		}
 	}
 
-
 	async saveChat() {
  		if(!this.isFolderPath(FOLDER_NAME)){
 			await this.createFolder(FOLDER_NAME);
