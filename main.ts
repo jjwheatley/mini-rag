@@ -77,13 +77,13 @@ export default class OllamaPlugin extends Plugin {
 
 	registerMenuItemForContextChats(menu: Menu, file: TAbstractFile){
 		menu.addItem((item) => {
-			const filename = this.fileManager.getFilenameWithoutExtension(file)
+			const filename = this.fileManager.readFilenameWithoutExtension(file)
 			item
 				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					await this.activateViewInWorkspace(this.app.workspace);
-					const context = file ? await this.fileManager.getFileText(file.path) : ""
+					const context = file ? await this.fileManager.readFileText(file.path) : ""
 					//Remove existing context and chat history
 					this.loadAI(context)
 					this.ui.resetChat(filename)
@@ -100,12 +100,11 @@ export default class OllamaPlugin extends Plugin {
 
 		const content: string[] = ["## Chat"]
 		for(const message of this.ui.messages){
-			content.push(message.role + "@" +message.timestamp);
+			content.push("#### "+message.role + "@" +message.timestamp);
 			content.push("- "+message.content);
 		}
 
-		await this.fileManager.deleteFileIfExists(filename);
-		await this.app.vault.create(filename, content.join("\n"));
+		await this.fileManager.updateFile(filename, content.join("\n"))
 
 		new Notice('Chat saved in: ' + filename);
 	}
