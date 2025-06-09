@@ -1,3 +1,6 @@
+export const APP_NAME = 'Mini-RAG'
+
+export const APP_TAGLINE = "Your Local LLM for Obsidian"
 
 export const VIEW_TYPE = 'ollama-chat-window';
 

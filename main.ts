@@ -3,7 +3,7 @@ import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
-import {FOLDER_NAME, ICON_NAME, VIEW_TYPE} from "./src/constants";
+import {APP_NAME, FOLDER_NAME, ICON_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 import {FileManager} from "./src/classes/file-manager";
 import {firstToUpper} from "./src/utils";
@@ -36,12 +36,12 @@ export default class OllamaPlugin extends Plugin {
 	registerItemsToContextMenuInFileNavigator(){
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
-				this.addMenuItemGeneralChats(menu)
 				if (this.fileManager.isFile(file)) { // Single File: Add the same way we do from a note
 					this.addMenuItemForSingleFileContextChats(menu, file as TFile);
 				} else if (this.fileManager.isFolder(file)) { // Folder: Add files individually to context
 					this.addMenuItemForMultiFileContextChats(menu, file as TFolder);
 				}
+				this.addMenuItemGeneralChats(menu)
 			})
 		);
 	}
@@ -49,8 +49,8 @@ export default class OllamaPlugin extends Plugin {
 	registerItemsToContextMenuInNotes(){
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
-				this.addMenuItemGeneralChats(menu)
 				if(file) this.addMenuItemForSingleFileContextChats(menu, file)
+				this.addMenuItemGeneralChats(menu)
 			})
 		);
 	}
@@ -65,10 +65,18 @@ export default class OllamaPlugin extends Plugin {
 		);
 	}
 
+	getMenuTitleOfItem(filename?: string){
+		if(filename){
+			return "Open " + APP_NAME + " chat (context: \"" + filename + "\")"
+		}else{
+			return "Open " + APP_NAME + " chat (context-free)"
+		}
+	}
+
 	addMenuItemGeneralChats(menu: Menu){
 		menu.addItem((item) => {
 			item
-				.setTitle("Chat with " + this.getModelUserFriendlyName() + " Context-Free")
+				.setTitle(this.getMenuTitleOfItem())
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					await this.activateViewInWorkspace(this.app.workspace);
@@ -83,7 +91,7 @@ export default class OllamaPlugin extends Plugin {
 		menu.addItem((item) => {
 			const filename = this.fileManager.readFilenameWithoutExtension(file)
 			item
-				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
+				.setTitle(this.getMenuTitleOfItem(filename))
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					await this.activateViewInWorkspace(this.app.workspace);
@@ -100,7 +108,7 @@ export default class OllamaPlugin extends Plugin {
 		menu.addItem((item) => {
 			const filename = this.fileManager.readFilenameWithoutExtension(folder)
 			item
-				.setTitle("Chat with " + this.getModelUserFriendlyName() + " about \"" + filename + "\"")
+				.setTitle(this.getMenuTitleOfItem(filename))
 				.setIcon(ICON_NAME)
 				.onClick(async () => {
 					await this.activateViewInWorkspace(this.app.workspace);

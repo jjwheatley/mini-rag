@@ -1,5 +1,5 @@
 import {ItemView, WorkspaceLeaf} from "obsidian";
-import {ICON_NAME, VIEW_TYPE} from "../constants";
+import {APP_NAME, ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
 import {ChatLoadingAnimation} from "./ui/chat-loading-animation";
 import {ChatConversationWindow} from "./ui/chat-conversation-window";
@@ -29,7 +29,7 @@ export class ChatWindow extends ItemView {
 	}
 
 	getDisplayText() {
-		return 'AI Chat';//ToDo: Update to something meaningful
+		return APP_NAME;
 	}
 
 	setDisabledState(isDisabled: boolean){
