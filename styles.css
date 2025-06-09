@@ -10,6 +10,12 @@
 	resize: none;
 }
 
+.chatContainer{
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
 .ollamaPluginConvoBox{
 	cursor: pointer;
 	white-space: pre-line;

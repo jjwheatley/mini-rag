@@ -15,6 +15,7 @@ export class ChatWindow extends ItemView {
 	loader: LoadingAnimation;
 	conversationBox: HTMLDivElement;
 	chatContainer: Element;
+	questionArea: HTMLDivElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -24,6 +25,7 @@ export class ChatWindow extends ItemView {
 		this.messages = [];
 		this.buttons = [];
 		this.chatContainer = this.containerEl.children[1]
+		this.chatContainer.classList.add("chatContainer");
 	}
 
 	getViewType() {
@@ -90,10 +92,13 @@ export class ChatWindow extends ItemView {
 		this.scrollToBottomOfElement(this.chatContainer)
 	}
 
-	addConversationBox(chatSubject?: string){
-		this.conversationBox = this.chatContainer.createEl("div", {cls: "conversationBox"});
+	addConvoHeading(chatSubject?: string) {
 		this.conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
 		this.conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
+	}
+
+	addConversationBox(){
+		this.conversationBox = this.chatContainer.createEl("div", {cls: "conversationBox"});
 	}
 
 	async sendInputToConversation() {
@@ -103,16 +108,15 @@ export class ChatWindow extends ItemView {
 	}
 
 	addQuestionArea(){
-		const questionArea = this.chatContainer.createEl("div");
-		questionArea.createEl('h4', { text: 'Ask a question...' });
-		this.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+		this.questionArea = this.chatContainer.createEl("div");
+		this.questionArea.createEl('h4', { text: 'Ask a question...' });
+		this.questionTextbox = this.questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
 		this.questionTextbox.addEventListener("keyup", async (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
 				await this.sendInputToConversation();
 			}
 		})
-		return questionArea;
 	}
 
 	addSendButton(parentEl: HTMLDivElement) {
@@ -152,37 +156,58 @@ export class ChatWindow extends ItemView {
 		this.loader = new LoadingAnimation(this.chatContainer)
 	}
 
-	resetChatContainer(){
-		this.chatContainer.empty();
-		this.chatContainer.classList.add("panelViewContainer");
-	}
-
 	clearButtonList(){
 		this.buttons = [];
 	}
 
-	resetChat(chatSubject?: string){ // ToDo: Reset only the chat
+	clearConversationBox(){
+		this.conversationBox.empty()
+	}
+
+	resetChat(chatSubject?: string){
 		// Clear/remove previous elements
 		this.chatStarted = new Date();
 		this.messages = [];
-		this.clearButtonList();
-		this.resetChatContainer() // Fetch a fresh chat container
-
+		this.clearConversationBox()
 		// Rebuild UI
-		this.addConversationBox(chatSubject);
-		this.addLoader()
-		const questionArea = this.addQuestionArea();
-		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
-		this.addSaveButton(leftButtonArea)
-		if(chatSubject) this.addSummarizeButton(leftButtonArea)
-		this.addSendButton(rightButtonArea);
+		this.addConvoHeading(chatSubject)
+		if(chatSubject !== undefined) {
+			this.showSummarizeButton()
+		}else {
+			this.hideSummarizeButton()
+		}
 
 		//Ensure UI state is respected
 		this.setUIDisabledState()
 	}
 
+	showSummarizeButton(){
+		this.buttons[1].style.display = "inline-flex";
+	}
+
+	hideSummarizeButton(){
+		this.buttons[1].style.display = "none";
+	}
+
 	async onOpen() {
-		this.resetChat()
+		// Clear/remove previous elements
+		this.chatStarted = new Date();
+		this.messages = [];
+		this.clearButtonList();
+		// Rebuild UI
+		this.addConversationBox();
+		this.addConvoHeading()
+		this.addLoader()
+		this.addQuestionArea();
+		// const buttonArea = this.addButtonArea();
+		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(this.questionArea)
+		this.addSaveButton(leftButtonArea)
+		this.addSummarizeButton(leftButtonArea)
+		this.hideSummarizeButton()
+		this.addSendButton(rightButtonArea);
+
+		//Ensure UI state is respected
+		this.setUIDisabledState()
 	}
 
 	async onClose() {// ToDo: Check to see if there are resources to release
