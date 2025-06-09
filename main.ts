@@ -119,7 +119,7 @@ export default class OllamaPlugin extends Plugin {
 
 		const filepath = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
 		const content: string[] = ["## Chat"]
-		for(const message of this.ui.messages)
+		for(const message of this.ui.chatMessages.get())
 			content.push("#### "+message.role + "@" +message.timestamp, "- "+message.content);
 
 		await this.fileManager.updateFile(filepath, content.join("\n"))

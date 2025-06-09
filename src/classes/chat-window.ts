@@ -1,12 +1,11 @@
 import {ItemView, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
-import {Message} from "../types";
-import {getTimestampFromDate} from "../utils";
 import {ChatLoadingAnimation} from "./ui/chat-loading-animation";
 import {ChatConversationWindow} from "./ui/chat-conversation-window";
 import {ChatButtons} from "./ui/chat-buttons";
 import {ChatInput} from "./ui/chat-input";
+import {ChatMessages} from "./ui/chat-messages";
 
 export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
@@ -16,7 +15,7 @@ export class ChatWindow extends ItemView {
 	input: ChatInput
 	chatContainer: Element;
 	chatStarted: Date;
-	messages: Message[];
+	chatMessages: ChatMessages;
 	inputWrapper: HTMLDivElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
@@ -52,12 +51,12 @@ export class ChatWindow extends ItemView {
 	async sendTextAsChatMessage(text: string) {
 		// Add user's Query to conversation
 		await this.conversationWindow.addToConversation(text, false)
-		this.messages.push({role: 'user', content: text, timestamp: getTimestampFromDate(new Date())});
+		this.chatMessages.addUserMessage(text)
 		this.scrollToEnd()
 		// Query AI & add response to conversation
 		const answer = await this.plugin.ai.sendQuestion(text)
 		await this.conversationWindow.addToConversation(answer, true)
-		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date())});
+		this.chatMessages.addAssistantMessage(answer)
 		this.scrollToEnd()
 	}
 
@@ -77,7 +76,7 @@ export class ChatWindow extends ItemView {
 	}
 
 	resetChat(chatSubject?: string){
-		this.messages = [];
+		this.chatMessages.clear()
 		this.chatStarted = new Date();
 		this.conversationWindow.clear()
 		this.conversationWindow.addConvoHeading(chatSubject)
@@ -89,7 +88,7 @@ export class ChatWindow extends ItemView {
 	}
 
 	async onOpen() {
-		this.messages = [];
+		this.chatMessages = new ChatMessages()
 		this.chatStarted = new Date();
 		this.chatContainer = this.containerEl.children[1]
 		this.chatContainer.classList.add("chatContainer");

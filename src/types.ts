@@ -4,8 +4,10 @@ export interface PluginSettings {
 	temperature: number;
 }
 
+export type MessageRoles = 'user' | 'assistant';
+
 export interface Message {
-	role: 'user' | 'assistant';
+	role: MessageRoles
 	content: string;
 	timestamp: string;
 }
