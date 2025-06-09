@@ -1,1 +1,3 @@
-# obsidian-ollama-plugin
+# Mini-Rag
+*Your Local LLM for Obsidian*
+
