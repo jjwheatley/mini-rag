@@ -3,6 +3,7 @@ import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
 import {Message} from "../types";
 import {getTimestampFromDate} from "../utils";
+import {LoadingAnimation} from "./ui/loading-animation";
 
 export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
@@ -11,7 +12,7 @@ export class ChatWindow extends ItemView {
 	uiDisabled: boolean
 	questionTextbox: HTMLTextAreaElement
 	buttons: HTMLButtonElement[];
-	loader: HTMLSpanElement;
+	loader: LoadingAnimation;
 	conversationBox: HTMLDivElement;
 	chatContainer: Element;
 
@@ -45,9 +46,9 @@ export class ChatWindow extends ItemView {
 
 	setLoaderState(showLoader: boolean) {
 		if(showLoader){
-			this.loader.classList.remove("hidden");
+			this.loader.show()
 		}else{
-			this.loader.classList.add("hidden");
+			this.loader.hide();
 		}
 	}
 
@@ -148,7 +149,7 @@ export class ChatWindow extends ItemView {
 	}
 
 	addLoader(){
-		this.loader = this.chatContainer.createEl("span", {cls: "loader"});
+		this.loader = new LoadingAnimation(this.chatContainer)
 	}
 
 	resetChatContainer(){
