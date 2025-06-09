@@ -1,17 +1,15 @@
 import {ItemView, Notice, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
-import {Message} from "../types";
+import {Message, UIElements} from "../types";
 import {getTimestampFromDate} from "../utils";
 
 export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
 	chatStarted: Date;
 	messages: Message[];
-	questionTextbox: HTMLTextAreaElement
-	buttons: HTMLButtonElement[];
 	uiDisabled: boolean
-	loader: HTMLSpanElement;
+	uiElements: UIElements;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -19,7 +17,8 @@ export class ChatWindow extends ItemView {
 		this.plugin = plugin;
 		this.chatStarted = new Date();
 		this.messages = [];
-		this.buttons = [];
+		this.uiElements.buttons = [];
+		this.uiElements.chatContainer = this.containerEl.children[1]
 	}
 
 	getViewType() {
@@ -40,34 +39,29 @@ export class ChatWindow extends ItemView {
 		this.setUIDisabledState()
 	}
 
-	hideLoader(){
-		this.loader.classList.add("hidden");
-	}
-	showLoader(){
-		this.loader.classList.remove("hidden");
+	setLoaderState(showLoader: boolean) {
+		if(showLoader){
+			this.uiElements.loader.classList.remove("hidden");
+		}else{
+			this.uiElements.loader.classList.add("hidden");
+		}
 	}
 
 	setUIDisabledState() {
+		this.uiElements.questionTextbox.disabled = this.uiDisabled;
+		this.setLoaderState(this.uiDisabled)
+
 		if(this.uiDisabled) {
-			this.showLoader()
+			for(const button of this.uiElements.buttons)
+				button.disabled = true
 		}else{
-			this.hideLoader()
-		}
-
-		this.questionTextbox.disabled = this.uiDisabled;
-		const buttons = this.buttons;
-
-		for(let i = 0; i < buttons.length; i++){
-			if(this.uiDisabled){
-				buttons[i].disabled = true
-			}else{
-				buttons[i].removeAttribute('disabled');
-			}
+			for(const button of this.uiElements.buttons)
+				button.removeAttribute('disabled');
 		}
 	}
 
-	async addToConversation(conversation: HTMLDivElement, text: string, isResponse: boolean) {
-		const element = conversation.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
+	async addToConversation(text: string, isResponse: boolean) {
+		const element = this.uiElements.conversationBox.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
 
 		element.onclick = async () => {
 			await navigator.clipboard.writeText(text);
@@ -79,71 +73,67 @@ export class ChatWindow extends ItemView {
 		element.scrollTop = element.scrollHeight;
 	}
 
-	async generateConvo(query: string, conversation: HTMLDivElement, container: Element) {
-		await this.addToConversation(conversation, query, false)
+	async generateConvo(query: string) {
+		await this.addToConversation(query, false)
 		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
-		this.scrollToBottomOfElement(container)
+		this.scrollToBottomOfElement(this.uiElements.chatContainer)
 
 		// Query AI & add response to conversation
 		const answer = await this.plugin.ai.sendQuestion(query)
-		await this.addToConversation(conversation, answer, true)
+		await this.addToConversation(answer, true)
 		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
-		this.scrollToBottomOfElement(container)
+		this.scrollToBottomOfElement(this.uiElements.chatContainer)
 	}
 
-	addConversationBox(container: Element, chatSubject?: string){
-		const conversationBox = container.createEl("div", {cls: "conversationBox"});
-		conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
-		conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
-		return conversationBox;
+	addConversationBox(chatSubject?: string){
+		this.uiElements.conversationBox = this.uiElements.chatContainer.createEl("div", {cls: "conversationBox"});
+		this.uiElements.conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
+		this.uiElements.conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
 	}
 
-	addQuestionArea(container: Element, conversationBox: HTMLDivElement){
-		const questionArea = container.createEl("div")
+	async sendInputToConversation() {
+		const query = this.uiElements.questionTextbox.value;
+		this.uiElements.questionTextbox.value = "";
+		await this.generateConvo(query);
+	}
+
+	addQuestionArea(){
+		const questionArea = this.uiElements.chatContainer.createEl("div");
 		questionArea.createEl('h4', { text: 'Ask a question...' });
-		this.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
-		this.questionTextbox.addEventListener("keyup", async (event) => {
+		this.uiElements.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+		this.uiElements.questionTextbox.addEventListener("keyup", async (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				const query = this.questionTextbox.value
-				this.questionTextbox.value = ""
-				await this.generateConvo(query, conversationBox, container)
+				await this.sendInputToConversation();
 			}
 		})
 		return questionArea;
 	}
 
-	addSendButton(parentEl: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
+	addSendButton(parentEl: HTMLDivElement) {
 		const sendButton = parentEl.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
 		sendButton.addEventListener("click", async () => {
 			if(!this.uiDisabled){
-				const query = this.questionTextbox.value
-				this.questionTextbox.value = ""
-				await this.generateConvo(query, conversationBox, chatContainer)
+				await this.sendInputToConversation();
 			}
 		})
-		this.buttons.push(sendButton);
+		this.uiElements.buttons.push(sendButton);
 	}
 
 	addSaveButton(parentEl: HTMLDivElement) {
 		const saveButton = parentEl.createEl("button", {text: "Save"});
-		saveButton.disabled = true
 		saveButton.addEventListener("click", async () => {
-			if(!this.uiDisabled){
-				await this.plugin.saveChat()
-			}
+			if(!this.uiDisabled) await this.plugin.saveChat()
 		})
-		this.buttons.push(saveButton);
+		this.uiElements.buttons.push(saveButton);
 	}
 
-	addSummarizeButton(parentEl: HTMLDivElement, conversationBox: HTMLDivElement, chatContainer: Element) {
+	addSummarizeButton(parentEl: HTMLDivElement) {
 		const summarizeButton = parentEl.createEl("button", {text: "Summarize"})
 		summarizeButton.addEventListener("click", async () => {
-			if(!this.uiDisabled) {
-				await this.generateConvo("Summarize the file", conversationBox, chatContainer)
-			}
+			if(!this.uiDisabled) await this.generateConvo("Summarize the file")
 		})
-		this.buttons.push(summarizeButton);
+		this.uiElements.buttons.push(summarizeButton);
 	}
 
 	addButtonAreas(container: Element) {
@@ -153,19 +143,17 @@ export class ChatWindow extends ItemView {
 		return [left, right];
 	}
 
-	addLoader(container: Element){
-		this.loader = container.createEl("span", {cls: "loader"});
+	addLoader(){
+		this.uiElements.loader = this.uiElements.chatContainer.createEl("span", {cls: "loader"});
 	}
 
 	resetChatContainer(){
-		const containerElement = this.containerEl.children[1];
-		containerElement.empty();
-		containerElement.classList.add("panelViewContainer");
-		return containerElement;
+		this.uiElements.chatContainer.empty();
+		this.uiElements.chatContainer.classList.add("panelViewContainer");
 	}
 
 	clearButtonList(){
-		this.buttons = [];
+		this.uiElements.buttons = [];
 	}
 
 	resetChat(chatSubject?: string){
@@ -173,16 +161,16 @@ export class ChatWindow extends ItemView {
 		this.chatStarted = new Date();
 		this.messages = [];
 		this.clearButtonList();
-		const chatContainer = this.resetChatContainer() // Fetch a fresh chat container
+		this.resetChatContainer() // Fetch a fresh chat container
 
 		// Rebuild UI
-		const conversationBox = this.addConversationBox(chatContainer, chatSubject);
-		this.addLoader(chatContainer)
-		const questionArea = this.addQuestionArea(chatContainer, conversationBox);
+		this.addConversationBox(chatSubject);
+		this.addLoader()
+		const questionArea = this.addQuestionArea();
 		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(questionArea)
 		this.addSaveButton(leftButtonArea)
-		if(chatSubject) this.addSummarizeButton(leftButtonArea, conversationBox, chatContainer)
-		this.addSendButton(rightButtonArea, conversationBox, chatContainer);
+		if(chatSubject) this.addSummarizeButton(leftButtonArea)
+		this.addSendButton(rightButtonArea);
 
 		//Ensure UI state is respected
 		this.setUIDisabledState()
