@@ -115,21 +115,16 @@ export default class OllamaPlugin extends Plugin {
 	}
 
 	async saveChat() {
-		if(!this.fileManager.isFolderPath(FOLDER_NAME)){
+		if(!this.fileManager.isFolderPath(FOLDER_NAME))
 			await this.fileManager.createFolder(FOLDER_NAME);
-		}
 
-		const filename = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
-
+		const filepath = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
 		const content: string[] = ["## Chat"]
-		for(const message of this.ui.messages){
-			content.push("#### "+message.role + "@" +message.timestamp);
-			content.push("- "+message.content);
-		}
+		for(const message of this.ui.messages)
+			content.push("#### "+message.role + "@" +message.timestamp, "- "+message.content);
 
-		await this.fileManager.updateFile(filename, content.join("\n"))
-
-		new Notice('Chat saved in: ' + filename);
+		await this.fileManager.updateFile(filepath, content.join("\n"))
+		new Notice('Chat saved in: ' + filepath);
 	}
 
 	async activateViewInWorkspace(workspace: Workspace){
