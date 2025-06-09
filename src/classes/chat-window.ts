@@ -1,7 +1,7 @@
 import {ItemView, Notice, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
-import {Message, UIElements} from "../types";
+import {Message} from "../types";
 import {getTimestampFromDate} from "../utils";
 
 export class ChatWindow extends ItemView {
@@ -9,7 +9,11 @@ export class ChatWindow extends ItemView {
 	chatStarted: Date;
 	messages: Message[];
 	uiDisabled: boolean
-	uiElements: UIElements;
+	questionTextbox: HTMLTextAreaElement
+	buttons: HTMLButtonElement[];
+	loader: HTMLSpanElement;
+	conversationBox: HTMLDivElement;
+	chatContainer: Element;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -17,8 +21,8 @@ export class ChatWindow extends ItemView {
 		this.plugin = plugin;
 		this.chatStarted = new Date();
 		this.messages = [];
-		this.uiElements.buttons = [];
-		this.uiElements.chatContainer = this.containerEl.children[1]
+		this.buttons = [];
+		this.chatContainer = this.containerEl.children[1]
 	}
 
 	getViewType() {
@@ -41,27 +45,27 @@ export class ChatWindow extends ItemView {
 
 	setLoaderState(showLoader: boolean) {
 		if(showLoader){
-			this.uiElements.loader.classList.remove("hidden");
+			this.loader.classList.remove("hidden");
 		}else{
-			this.uiElements.loader.classList.add("hidden");
+			this.loader.classList.add("hidden");
 		}
 	}
 
 	setUIDisabledState() {
-		this.uiElements.questionTextbox.disabled = this.uiDisabled;
+		this.questionTextbox.disabled = this.uiDisabled;
 		this.setLoaderState(this.uiDisabled)
 
 		if(this.uiDisabled) {
-			for(const button of this.uiElements.buttons)
+			for(const button of this.buttons)
 				button.disabled = true
 		}else{
-			for(const button of this.uiElements.buttons)
+			for(const button of this.buttons)
 				button.removeAttribute('disabled');
 		}
 	}
 
 	async addToConversation(text: string, isResponse: boolean) {
-		const element = this.uiElements.conversationBox.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
+		const element = this.conversationBox.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
 
 		element.onclick = async () => {
 			await navigator.clipboard.writeText(text);
@@ -76,32 +80,32 @@ export class ChatWindow extends ItemView {
 	async generateConvo(query: string) {
 		await this.addToConversation(query, false)
 		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
-		this.scrollToBottomOfElement(this.uiElements.chatContainer)
+		this.scrollToBottomOfElement(this.chatContainer)
 
 		// Query AI & add response to conversation
 		const answer = await this.plugin.ai.sendQuestion(query)
 		await this.addToConversation(answer, true)
 		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
-		this.scrollToBottomOfElement(this.uiElements.chatContainer)
+		this.scrollToBottomOfElement(this.chatContainer)
 	}
 
 	addConversationBox(chatSubject?: string){
-		this.uiElements.conversationBox = this.uiElements.chatContainer.createEl("div", {cls: "conversationBox"});
-		this.uiElements.conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
-		this.uiElements.conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
+		this.conversationBox = this.chatContainer.createEl("div", {cls: "conversationBox"});
+		this.conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
+		this.conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
 	}
 
 	async sendInputToConversation() {
-		const query = this.uiElements.questionTextbox.value;
-		this.uiElements.questionTextbox.value = "";
+		const query = this.questionTextbox.value;
+		this.questionTextbox.value = "";
 		await this.generateConvo(query);
 	}
 
 	addQuestionArea(){
-		const questionArea = this.uiElements.chatContainer.createEl("div");
+		const questionArea = this.chatContainer.createEl("div");
 		questionArea.createEl('h4', { text: 'Ask a question...' });
-		this.uiElements.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
-		this.uiElements.questionTextbox.addEventListener("keyup", async (event) => {
+		this.questionTextbox = questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
+		this.questionTextbox.addEventListener("keyup", async (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
 				await this.sendInputToConversation();
@@ -117,7 +121,7 @@ export class ChatWindow extends ItemView {
 				await this.sendInputToConversation();
 			}
 		})
-		this.uiElements.buttons.push(sendButton);
+		this.buttons.push(sendButton);
 	}
 
 	addSaveButton(parentEl: HTMLDivElement) {
@@ -125,7 +129,7 @@ export class ChatWindow extends ItemView {
 		saveButton.addEventListener("click", async () => {
 			if(!this.uiDisabled) await this.plugin.saveChat()
 		})
-		this.uiElements.buttons.push(saveButton);
+		this.buttons.push(saveButton);
 	}
 
 	addSummarizeButton(parentEl: HTMLDivElement) {
@@ -133,7 +137,7 @@ export class ChatWindow extends ItemView {
 		summarizeButton.addEventListener("click", async () => {
 			if(!this.uiDisabled) await this.generateConvo("Summarize the file")
 		})
-		this.uiElements.buttons.push(summarizeButton);
+		this.buttons.push(summarizeButton);
 	}
 
 	addButtonAreas(container: Element) {
@@ -144,16 +148,16 @@ export class ChatWindow extends ItemView {
 	}
 
 	addLoader(){
-		this.uiElements.loader = this.uiElements.chatContainer.createEl("span", {cls: "loader"});
+		this.loader = this.chatContainer.createEl("span", {cls: "loader"});
 	}
 
 	resetChatContainer(){
-		this.uiElements.chatContainer.empty();
-		this.uiElements.chatContainer.classList.add("panelViewContainer");
+		this.chatContainer.empty();
+		this.chatContainer.classList.add("panelViewContainer");
 	}
 
 	clearButtonList(){
-		this.uiElements.buttons = [];
+		this.buttons = [];
 	}
 
 	resetChat(chatSubject?: string){

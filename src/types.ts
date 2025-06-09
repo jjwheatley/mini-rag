@@ -9,11 +9,3 @@ export interface Message {
 	content: string;
 	timestamp: string;
 }
-
-export interface UIElements {
-	questionTextbox: HTMLTextAreaElement
-	buttons: HTMLButtonElement[];
-	loader: HTMLSpanElement;
-	conversationBox: HTMLDivElement;
-	chatContainer: Element;
-}
