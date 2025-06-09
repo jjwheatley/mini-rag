@@ -36,6 +36,7 @@ export default class OllamaPlugin extends Plugin {
 	registerItemsToContextMenuInFileNavigator(){
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
+				this.addMenuItemGeneralChats(menu)
 				if (this.fileManager.isFile(file)) { // Single File: Add the same way we do from a note
 					this.addMenuItemForSingleFileContextChats(menu, file as TFile);
 				} else if (this.fileManager.isFolder(file)) { // Folder: Add files individually to context
@@ -129,17 +130,13 @@ export default class OllamaPlugin extends Plugin {
 		let leaf: WorkspaceLeaf;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
 
-		if (leaves.length > 0) { // A leaf with our view already exists, use it
-			leaf = leaves[0];
-			await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
+		if (leaves.length === 0) { // A leaf with our view already exists, use it
+			leaf = workspace.getRightLeaf(false) as WorkspaceLeaf;
+			await leaf.setViewState({type: VIEW_TYPE, active: true});
 		} else { // View isn't found in workspace, create in sidebar as new leaf
-			const rightMostLeaf = workspace.getRightLeaf(false);
-			if(rightMostLeaf) {
-				leaf = rightMostLeaf
-				await leaf.setViewState({type: VIEW_TYPE, active: true});
-				await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
-			}
+			leaf = leaves[0];
 		}
+		await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
 	}
 
 	loadAI(initialContext?: string){
@@ -166,4 +163,3 @@ export default class OllamaPlugin extends Plugin {
 
 	}
 }
-
