@@ -1,9 +1,10 @@
-import {ItemView, Notice, WorkspaceLeaf} from "obsidian";
+import {ItemView, WorkspaceLeaf} from "obsidian";
 import {ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
 import {Message} from "../types";
 import {getTimestampFromDate} from "../utils";
 import {LoadingAnimation} from "./ui/loading-animation";
+import {ConversationWindow} from "./ui/conversationWindow";
 
 export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
@@ -13,7 +14,7 @@ export class ChatWindow extends ItemView {
 	questionTextbox: HTMLTextAreaElement
 	buttons: HTMLButtonElement[];
 	loader: LoadingAnimation;
-	conversationBox: HTMLDivElement;
+	conversationWindow: ConversationWindow;
 	chatContainer: Element;
 	questionArea: HTMLDivElement;
 
@@ -26,6 +27,7 @@ export class ChatWindow extends ItemView {
 		this.buttons = [];
 		this.chatContainer = this.containerEl.children[1]
 		this.chatContainer.classList.add("chatContainer");
+		this.conversationWindow = new ConversationWindow(plugin, this.chatContainer)
 	}
 
 	getViewType() {
@@ -67,38 +69,20 @@ export class ChatWindow extends ItemView {
 		}
 	}
 
-	async addToConversation(text: string, isResponse: boolean) {
-		const element = this.conversationBox.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
-
-		element.onclick = async () => {
-			await navigator.clipboard.writeText(text);
-			new Notice("Message Copied")
-		}
-	}
-
 	scrollToBottomOfElement(element: Element) {
 		element.scrollTop = element.scrollHeight;
 	}
 
 	async generateConvo(query: string) {
-		await this.addToConversation(query, false)
+		await this.conversationWindow.addToConversation(query, false)
 		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
 		this.scrollToBottomOfElement(this.chatContainer)
 
 		// Query AI & add response to conversation
 		const answer = await this.plugin.ai.sendQuestion(query)
-		await this.addToConversation(answer, true)
+		await this.conversationWindow.addToConversation(answer, true)
 		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
 		this.scrollToBottomOfElement(this.chatContainer)
-	}
-
-	addConvoHeading(chatSubject?: string) {
-		this.conversationBox.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
-		this.conversationBox.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
-	}
-
-	addConversationBox(){
-		this.conversationBox = this.chatContainer.createEl("div", {cls: "conversationBox"});
 	}
 
 	async sendInputToConversation() {
@@ -160,17 +144,13 @@ export class ChatWindow extends ItemView {
 		this.buttons = [];
 	}
 
-	clearConversationBox(){
-		this.conversationBox.empty()
-	}
-
 	resetChat(chatSubject?: string){
 		// Clear/remove previous elements
 		this.chatStarted = new Date();
 		this.messages = [];
-		this.clearConversationBox()
+		this.conversationWindow.clear()
 		// Rebuild UI
-		this.addConvoHeading(chatSubject)
+		this.conversationWindow.addConvoHeading(chatSubject)
 		if(chatSubject !== undefined) {
 			this.showSummarizeButton()
 		}else {
@@ -195,11 +175,8 @@ export class ChatWindow extends ItemView {
 		this.messages = [];
 		this.clearButtonList();
 		// Rebuild UI
-		this.addConversationBox();
-		this.addConvoHeading()
 		this.addLoader()
 		this.addQuestionArea();
-		// const buttonArea = this.addButtonArea();
 		const [leftButtonArea, rightButtonArea] = this.addButtonAreas(this.questionArea)
 		this.addSaveButton(leftButtonArea)
 		this.addSummarizeButton(leftButtonArea)
