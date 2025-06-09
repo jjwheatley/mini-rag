@@ -21,12 +21,19 @@ export default class OllamaPlugin extends Plugin {
 		this.loadFileManager()
 		this.loadContextualizer()
 		this.loadAI()
-		this.registerChatWindow()
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingTab(this.app, this));
+		this.registerChatWindow()
+		this.registerItemsToContextMenuInFileNavigator()// Register menu item for a triple-dot file menu & right-click menu within the left sidebar
+		this.registerItemsToContextMenuInNotes()// Register menu item for right-click "context" menu, within the file view
+	}
 
-		// Register menu item for a triple-dot file menu & right-click menu within the left sidebar
+	getModelUserFriendlyName(){
+		//Capitalize the first letter of the name and return everything up to the ':' symbol
+		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'))
+		return firstToUpper(nameBeforeColon);
+	}
+
+	registerItemsToContextMenuInFileNavigator(){
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (this.fileManager.isFile(file)) { // Single File: Add the same way we do from a note
@@ -36,18 +43,9 @@ export default class OllamaPlugin extends Plugin {
 				}
 			})
 		);
-
-		// Register menu item for right-click "context" menu, within the file view
-		this.registerItemsContextMenuInNotes()
 	}
 
-	getModelUserFriendlyName(){
-		//Capitalize the first letter of the name and return everything up to the ':' symbol
-		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'))
-		return firstToUpper(nameBeforeColon);
-	}
-
-	registerItemsContextMenuInNotes(){
+	registerItemsToContextMenuInNotes(){
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
 				this.addMenuItemGeneralChats(menu)
