@@ -9,21 +9,19 @@ import {ChatButtons} from "./ui/chat-buttons";
 
 export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
-	chatStarted: Date;
-	messages: Message[];
-	questionTextbox: HTMLTextAreaElement
 	buttons: ChatButtons;
 	loader: ChatLoadingAnimation;
 	conversationWindow: ChatConversationWindow;
+	questionTextbox: HTMLTextAreaElement
 	chatContainer: Element;
+	chatStarted: Date;
+	messages: Message[];
 	questionArea: HTMLDivElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
 		this.icon = ICON_NAME
 		this.plugin = plugin;
-		this.chatStarted = new Date();
-		this.messages = [];
 	}
 
 	getViewType() {
@@ -36,20 +34,12 @@ export class ChatWindow extends ItemView {
 
 	setDisabledState(isDisabled: boolean){
 		this.questionTextbox.disabled = isDisabled;
-		this.setLoaderState(isDisabled)
-
 		if(isDisabled) {
+			this.loader.show()
 			this.buttons.disableButtons()
 		}else{
-			this.buttons.enableButtons()
-		}
-	}
-
-	setLoaderState(showLoader: boolean) {
-		if(showLoader){
-			this.loader.show()
-		}else{
 			this.loader.hide();
+			this.buttons.enableButtons()
 		}
 	}
 
@@ -88,11 +78,9 @@ export class ChatWindow extends ItemView {
 	}
 
 	resetChat(chatSubject?: string){
-		// Clear/remove previous elements
-		this.chatStarted = new Date();
 		this.messages = [];
+		this.chatStarted = new Date();
 		this.conversationWindow.clear()
-		// Rebuild UI
 		this.conversationWindow.addConvoHeading(chatSubject)
 		if(chatSubject !== undefined) {
 			this.buttons.showSummarizeButton()
@@ -102,13 +90,11 @@ export class ChatWindow extends ItemView {
 	}
 
 	async onOpen() {
+		this.messages = [];
+		this.chatStarted = new Date();
 		this.chatContainer = this.containerEl.children[1]
 		this.chatContainer.classList.add("chatContainer");
 		this.conversationWindow = new ChatConversationWindow(this.plugin, this.chatContainer)
-		// Clear/remove previous elements
-		this.chatStarted = new Date();
-		this.messages = [];
-		// Rebuild UI
 		this.loader = new ChatLoadingAnimation(this.chatContainer)
 		this.addQuestionArea();
 		this.buttons = new ChatButtons(this)
