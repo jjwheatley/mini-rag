@@ -9,13 +9,17 @@ export class ChatButtons{
 
 	constructor(chatWindow: ChatWindow){
 		this.chatWindow = chatWindow
-		const [left, right] = this.addButtonAreas(this.chatWindow.questionArea)
+	}
+
+	init(){
+		const [left, right] = this.addButtonAreas(this.chatWindow.inputWrapper)
 		this.saveButton = this.addSaveButton(left)
 		this.summarizeButton = this.addSummarizeButton(left)
 		this.hideSummarizeButton()
 		this.sendButton = this.addSendButton(right)
 		this.blockButtonEvents = false
 	}
+
 
 	addButtonAreas(container: Element) {
 		const parent = container.createEl("div", {cls: "buttonArea"});
@@ -38,7 +42,7 @@ export class ChatButtons{
 		const summarizeButton = parentEl.createEl("button", {text: "Summarize"})
 		summarizeButton.addEventListener("click", async () => {
 			if (!this.blockButtonEvents) {
-				await this.chatWindow.generateConvo("Summarize the file")
+				await this.chatWindow.sendTextAsChatMessage("Summarize the file")
 			}
 		})
 		return  summarizeButton;
@@ -48,7 +52,7 @@ export class ChatButtons{
 		const sendButton = parentEl.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
 		sendButton.addEventListener("click", async () => {
 			if(!this.blockButtonEvents){
-				await this.chatWindow.sendInputToConversation();
+				await this.chatWindow.sendInputAsChatMessage();
 			}
 		})
 		return  sendButton;

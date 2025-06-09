@@ -6,17 +6,18 @@ import {getTimestampFromDate} from "../utils";
 import {ChatLoadingAnimation} from "./ui/chat-loading-animation";
 import {ChatConversationWindow} from "./ui/chat-conversation-window";
 import {ChatButtons} from "./ui/chat-buttons";
+import {ChatInput} from "./ui/chat-input";
 
 export class ChatWindow extends ItemView {
 	plugin: OllamaPlugin;
 	buttons: ChatButtons;
 	loader: ChatLoadingAnimation;
 	conversationWindow: ChatConversationWindow;
-	questionTextbox: HTMLTextAreaElement
+	input: ChatInput
 	chatContainer: Element;
 	chatStarted: Date;
 	messages: Message[];
-	questionArea: HTMLDivElement;
+	inputWrapper: HTMLDivElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: OllamaPlugin) {
 		super(leaf);
@@ -33,13 +34,14 @@ export class ChatWindow extends ItemView {
 	}
 
 	setDisabledState(isDisabled: boolean){
-		this.questionTextbox.disabled = isDisabled;
 		if(isDisabled) {
 			this.loader.show()
 			this.buttons.disableButtons()
+			this.input.disable()
 		}else{
 			this.loader.hide();
 			this.buttons.enableButtons()
+			this.input.enable()
 		}
 	}
 
@@ -47,34 +49,31 @@ export class ChatWindow extends ItemView {
 		this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 	}
 
-	async generateConvo(query: string) {
-		await this.conversationWindow.addToConversation(query, false)
-		this.messages.push({role: 'user', content: query, timestamp: getTimestampFromDate(new Date()) });
+	async sendTextAsChatMessage(text: string) {
+		// Add user's Query to conversation
+		await this.conversationWindow.addToConversation(text, false)
+		this.messages.push({role: 'user', content: text, timestamp: getTimestampFromDate(new Date())});
 		this.scrollToEnd()
-
 		// Query AI & add response to conversation
-		const answer = await this.plugin.ai.sendQuestion(query)
+		const answer = await this.plugin.ai.sendQuestion(text)
 		await this.conversationWindow.addToConversation(answer, true)
-		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date()) });
+		this.messages.push({role: 'assistant', content: answer, timestamp: getTimestampFromDate(new Date())});
 		this.scrollToEnd()
 	}
 
-	async sendInputToConversation() {
-		const query = this.questionTextbox.value;
-		this.questionTextbox.value = "";
-		await this.generateConvo(query);
+	async sendInputAsChatMessage() {
+		const inputText = this.input.getValue();
+		this.input.clear();
+		await this.sendTextAsChatMessage(inputText);
 	}
 
-	addQuestionArea(){
-		this.questionArea = this.chatContainer.createEl("div");
-		this.questionArea.createEl('h4', { text: 'Ask a question...' });
-		this.questionTextbox = this.questionArea.createEl('textarea', { placeholder: 'Type your question here', cls: "ollamaPluginQuestionBox" });
-		this.questionTextbox.addEventListener("keyup", async (event) => {
-			if (event.key === "Enter") {
-				event.preventDefault();
-				await this.sendInputToConversation();
-			}
-		})
+	initInputArea(){
+		this.inputWrapper = this.chatContainer.createEl("div");
+		this.inputWrapper.createEl('h4', { text: 'Ask a question...' });
+		this.input = new ChatInput(this)
+		this.input.init()
+		this.buttons = new ChatButtons(this)
+		this.buttons.init()
 	}
 
 	resetChat(chatSubject?: string){
@@ -96,8 +95,7 @@ export class ChatWindow extends ItemView {
 		this.chatContainer.classList.add("chatContainer");
 		this.conversationWindow = new ChatConversationWindow(this.plugin, this.chatContainer)
 		this.loader = new ChatLoadingAnimation(this.chatContainer)
-		this.addQuestionArea();
-		this.buttons = new ChatButtons(this)
+		this.initInputArea();
 		this.setDisabledState(false)
 	}
 
