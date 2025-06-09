@@ -15,8 +15,8 @@ export class OllamaWrapper{
 
 	sendInitialContext(initialContext: string){
 		const prompt = CONTEXT_TEMPLATE + initialContext
-		this.plugin.ui.freezeUI();
-		this.sendQuestion(prompt).then(() => this.plugin.ui.unfreezeUI());
+		this.plugin.ui.setDisabledState(true);
+		this.sendQuestion(prompt).then(() => this.plugin.ui.setDisabledState(false));
 	}
 
 	async getModelList(){

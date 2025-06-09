@@ -1,7 +1,7 @@
 import {Notice} from "obsidian";
 import OllamaPlugin from "../../../main";
 
-export class ConversationWindow{
+export class ChatConversationWindow {
 	htmlElement: HTMLSpanElement;
 	plugin: OllamaPlugin
 

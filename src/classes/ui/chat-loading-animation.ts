@@ -1,10 +1,9 @@
 
-export class LoadingAnimation{
+export class ChatLoadingAnimation {
 	htmlElement: HTMLSpanElement;
 
 	constructor(parent: Element) {
 		this.htmlElement = parent.createEl("span", {cls: "loader"});
-
 	}
 
 	show(){
