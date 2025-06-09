@@ -160,7 +160,7 @@ export class ChatWindow extends ItemView {
 		this.buttons = [];
 	}
 
-	resetChat(chatSubject?: string){
+	resetChat(chatSubject?: string){ // ToDo: Reset only the chat
 		// Clear/remove previous elements
 		this.chatStarted = new Date();
 		this.messages = [];
