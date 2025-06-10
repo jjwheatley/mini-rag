@@ -25,7 +25,7 @@ export class ChatConversationWindow {
 	}
 
 	addConvoHeading(chatSubject?: string) {
-		this.htmlElement.createEl('h3', { text: 'Chat with ' + this.plugin.getModelUserFriendlyName()});
+		this.htmlElement.createEl('h3', { text: 'Mini-RAG Chat with ' + this.plugin.getModelUserFriendlyName()});
 		this.htmlElement.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
 	}
 }

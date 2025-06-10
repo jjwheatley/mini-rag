@@ -1,12 +1,10 @@
 export const APP_NAME = 'Mini-RAG'
 
-export const APP_TAGLINE = "Your Local LLM for Obsidian"
-
-export const VIEW_TYPE = 'ollama-chat-window';
+export const VIEW_TYPE = APP_NAME.toLowerCase()+'-chat-window';
 
 export const ICON_NAME =  "brain"
 
-export const FOLDER_NAME = "Ask Ollama Chats"
+export const FOLDER_NAME = APP_NAME + " Chats"
 
 export const CONTEXT_TEMPLATE = "The following text may be referred to as a 'file', 'markdown file', 'text', 'document', etc. For this chat, you will use the text as context. \n\n The Text: "
 
