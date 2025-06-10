@@ -1,4 +1,5 @@
 import {ChatWindow} from "../chat-window";
+import {CSS_CLASS_PREFIX} from "../../constants";
 
 export class ChatButtons{
 	chatWindow: ChatWindow
@@ -22,9 +23,9 @@ export class ChatButtons{
 
 
 	addButtonAreas(container: Element) {
-		const parent = container.createEl("div", {cls: "buttonArea"});
-		const left = parent.createEl("div", {cls: "buttonArea left"});
-		const right = parent.createEl("div", {cls: "buttonArea right"});
+		const parent = container.createEl("div", {cls: CSS_CLASS_PREFIX+"ButtonArea"});
+		const left = parent.createEl("div", {cls: CSS_CLASS_PREFIX+"ButtonArea left"});
+		const right = parent.createEl("div", {cls: CSS_CLASS_PREFIX+"ButtonArea right"});
 		return [left, right];
 	}
 
@@ -49,7 +50,7 @@ export class ChatButtons{
 	}
 
 	addSendButton(parentEl: HTMLDivElement) {
-		const sendButton = parentEl.createEl("button", {text: "Send", cls: "ollamaPluginSendButton"})
+		const sendButton = parentEl.createEl("button", {text: "Send", cls: CSS_CLASS_PREFIX+"SendButton"})
 		sendButton.addEventListener("click", async () => {
 			if(!this.blockButtonEvents){
 				await this.chatWindow.sendInputAsChatMessage();

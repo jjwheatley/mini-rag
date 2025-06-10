@@ -1,22 +1,16 @@
-.panelViewContainer{
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
-}
-
-.ollamaPluginQuestionBox{
+.miniRagPluginQuestionBox{
 	width: 100%;
 	height: 100px;
 	resize: none;
 }
 
-.chatContainer{
+.miniRagPluginChatContainer{
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
 }
 
-.ollamaPluginConvoBox{
+.miniRagPluginConvoBox{
 	cursor: pointer;
 	white-space: pre-line;
 	width: auto;
@@ -26,34 +20,33 @@
 	padding: 8px;
 }
 
-.ollamaPluginConvoBox.query{
+.miniRagPluginConvoBox.query{
 	text-align: right;
 	background: green;
 	justify-self: right;
 }
 
-.ollamaPluginConvoBox.response{
+.miniRagPluginConvoBox.response{
 	text-align: left;
 	background: grey;
 	justify-self: left;
 }
 
-.buttonArea{
+.miniRagPluginButtonArea{
 	display: flex;
 	justify-content: space-between;
 }
 
-.buttonArea.left{
+.miniRagPluginButtonArea.left{
 	gap: 4px;
 }
 
-.ollamaPluginSendButton.ollamaPluginSendButton{
+.miniRagPluginSendButton.miniRagPluginSendButton{
 	background-color: green;
 }
 
-
 /*Loading Animation - Start*/
-.loader {
+.miniRagPluginLoader {
 	 width: 16px;
 	 height: 16px;
 	 margin: 100px auto;
@@ -61,12 +54,14 @@
 	 background-color: #fff;
 	 box-shadow: 32px 0 #fff, -32px 0 #fff;
 	 position: relative;
-	 animation: tripleDot 750ms ease-out infinite alternate;
+	 animation: miniRagPluginTripleDot 750ms ease-out infinite alternate;
  }
-.loader.hidden{
+
+.miniRagPluginLoader.hidden{
 	display: none;
 }
-@keyframes tripleDot {
+
+@keyframes miniRagPluginTripleDot {
 	0% {
 		background-color: #FFF2;
 		box-shadow: 32px 0 #FFF2, -32px 0 #FFF;

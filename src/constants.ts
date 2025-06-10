@@ -12,3 +12,5 @@ export const OLLAMA_API = {
 	tags: "/api/tags",
 	generate: "/api/generate",
 }
+
+export const CSS_CLASS_PREFIX = "miniRagPlugin"

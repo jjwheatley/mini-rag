@@ -1,5 +1,6 @@
 import {Notice} from "obsidian";
 import OllamaPlugin from "../../../main";
+import {CSS_CLASS_PREFIX} from "../../constants";
 
 export class ChatConversationWindow {
 	htmlElement: HTMLSpanElement;
@@ -7,7 +8,7 @@ export class ChatConversationWindow {
 
 	constructor(plugin: OllamaPlugin, parent: Element) {
 		this.plugin = plugin
-		this.htmlElement = parent.createEl("div", {cls: "conversationBox"});
+		this.htmlElement = parent.createEl("div");
 		this.addConvoHeading()
 	}
 
@@ -16,7 +17,7 @@ export class ChatConversationWindow {
 	}
 
 	async addToConversation(text: string, isResponse: boolean) {
-		const element = this.htmlElement.createEl('div', { text: text, cls: "ollamaPluginConvoBox " + (isResponse ? "response" : "query")});
+		const element = this.htmlElement.createEl('div', { text: text, cls: CSS_CLASS_PREFIX+"ConvoBox " + (isResponse ? "response" : "query")});
 
 		element.onclick = async () => {
 			await navigator.clipboard.writeText(text);

@@ -1,5 +1,5 @@
 import {ItemView, WorkspaceLeaf} from "obsidian";
-import {APP_NAME, ICON_NAME, VIEW_TYPE} from "../constants";
+import {APP_NAME, CSS_CLASS_PREFIX, ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
 import {ChatLoadingAnimation} from "./ui/chat-loading-animation";
 import {ChatConversationWindow} from "./ui/chat-conversation-window";
@@ -91,7 +91,7 @@ export class ChatWindow extends ItemView {
 		this.chatMessages = new ChatMessages()
 		this.chatStarted = new Date();
 		this.chatContainer = this.containerEl.children[1]
-		this.chatContainer.classList.add("chatContainer");
+		this.chatContainer.classList.add(CSS_CLASS_PREFIX+"ChatContainer");
 		this.conversationWindow = new ChatConversationWindow(this.plugin, this.chatContainer)
 		this.loader = new ChatLoadingAnimation(this.chatContainer)
 		this.initInputArea();

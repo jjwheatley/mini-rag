@@ -1,4 +1,5 @@
 import {ChatWindow} from "../chat-window";
+import {CSS_CLASS_PREFIX} from "../../constants";
 
 export class ChatInput{
 	chatWindow: ChatWindow;
@@ -11,7 +12,7 @@ export class ChatInput{
 	init(){
 		this.htmlElement = this.chatWindow.inputWrapper.createEl('textarea', {
 			placeholder: 'Type your question here',
-			cls: "ollamaPluginQuestionBox"
+			cls: CSS_CLASS_PREFIX+"QuestionBox"
 		});
 		this.htmlElement.addEventListener("keyup", async (event) => {
 			if (event.key === "Enter") {
