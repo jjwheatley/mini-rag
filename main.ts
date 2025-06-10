@@ -1,116 +1,49 @@
-import {Menu, Notice, Plugin, TAbstractFile, TFile, TFolder, Workspace, WorkspaceLeaf} from 'obsidian';
+import {Notice, Plugin, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
 import {DEFAULT_SETTINGS} from "./src/defaults";
 import {PluginSettings} from "./src/types";
-import {APP_NAME, FOLDER_NAME, ICON_NAME, VIEW_TYPE} from "./src/constants";
+import {FOLDER_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 import {FileManager} from "./src/classes/file-manager";
 import {firstToUpper} from "./src/utils";
 import {Contextualizer} from "./src/classes/contextualizer";
+import {MenuManager} from "./src/classes/menu-manager";
 
 export default class OllamaPlugin extends Plugin {
 	ui: ChatWindow;
 	ai: OllamaWrapper;
+	menu: MenuManager;
 	context: Contextualizer;
 	settings: PluginSettings;
 	fileManager: FileManager;
 
 	async onload() {
-		await this.loadSettings()
-		this.loadFileManager()
-		this.loadContextualizer()
-		this.loadAI()
+		await this.loadSettings();
+		this.loadFileManager();
+		this.loadContextualizer();
+		this.loadAI();
 		this.addSettingTab(new SettingTab(this.app, this));
-		this.registerChatWindow()
-		this.registerItemsToContextMenuInFileNavigator()// Register menu item for a triple-dot file menu & right-click menu within the left sidebar
-		this.registerItemsToContextMenuInNotes()// Register menu item for right-click "context" menu, within the file view
+		this.loadMenu();
 	}
 
 	getModelUserFriendlyName(){
-		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'))
+		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'));
 		return firstToUpper(nameBeforeColon);
 	}
 
-	registerItemsToContextMenuInFileNavigator(){
-		this.registerEvent(
-			this.app.workspace.on("file-menu", (menu, file) => {
-				this.addMenuItemContextSensitiveChat(menu, file);
-				this.addMenuItemContextFreeChat(menu)
-			})
-		);
-	}
-
-	registerItemsToContextMenuInNotes(){
-		this.registerEvent(
-			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
-				if(file) this.addMenuItemContextSensitiveChat(menu, file)
-				this.addMenuItemContextFreeChat(menu)
-			})
-		);
-	}
-
-	registerChatWindow(): void {
-		this.registerView(
-			VIEW_TYPE,
-			(leaf) => {
-				this.ui = new ChatWindow(leaf, this)
-				return this.ui
-			}
-		);
-	}
-
-	getMenuTitleOfItem(filename?: string){
-		return "Open " + APP_NAME + " chat " + (filename? "(context: \"" + filename + "\")" :"(context-free)")
-	}
-
-	addMenuItemContextFreeChat(menu: Menu){
-		if(this.settings.isContextFreeChatsEnabled) {
-			menu.addItem((item) => {
-				item
-					.setTitle(this.getMenuTitleOfItem())
-					.setIcon(ICON_NAME)
-					.onClick(async () => {
-						await this.activateViewInWorkspace(this.app.workspace);
-						//Remove existing context and chat history
-						this.loadAI()
-						this.ui.resetChat()
-					});
-			});
-		}
-	}
-
-	addMenuItemContextSensitiveChat(menu: Menu, context: TAbstractFile){
-		menu.addItem((item) => {
-			const filename = this.fileManager.readFilenameWithoutExtension(context)
-			item
-				.setTitle(this.getMenuTitleOfItem(filename))
-				.setIcon(ICON_NAME)
-				.onClick(async () => {
-					await this.activateViewInWorkspace(this.app.workspace);
-					//Remove existing context and chat history
-					this.loadContextualizer()
-					if(this.fileManager.isFile(context)){
-						await this.context.addFileToContext(context)
-					}else if(this.fileManager.isFolder(context)){
-						await this.context.addFolderToContext(context as TFolder)
-					}
-					this.loadAI(this.context.getContextAsText())
-					this.ui.resetChat(filename)
-				});
-		});
-	}
-
 	async saveChat() {
-		if(!this.fileManager.isFolderPath(FOLDER_NAME))
+		if(!this.fileManager.isFolderPath(FOLDER_NAME)) {
 			await this.fileManager.createFolder(FOLDER_NAME);
+		}
 
 		const filepath = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
-		const content: string[] = ["## Chat"]
-		for(const message of this.ui.chatMessages.get())
-			content.push("#### "+message.role + "@" +message.timestamp, "- "+message.content);
+		const content: string[] = ["## Chat"];
+		for(const message of this.ui.chatMessages.get()) {
+			content.push("#### " + message.role + "@" + message.timestamp, "- " + message.content);
+		}
 
-		await this.fileManager.updateFile(filepath, content.join("\n"))
+		await this.fileManager.updateFile(filepath, content.join("\n"));
 		new Notice('Chat saved in: ' + filepath);
 	}
 
@@ -132,11 +65,15 @@ export default class OllamaPlugin extends Plugin {
 	}
 
 	loadContextualizer(){
-		this.context = new Contextualizer(this)
+		this.context = new Contextualizer(this);
 	}
 
 	loadFileManager(){
 		this.fileManager = new FileManager(this.app.vault);
+	}
+
+	loadMenu(){
+		this.menu = new MenuManager(this);
 	}
 
 	async loadSettings() {
