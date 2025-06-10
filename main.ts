@@ -27,24 +27,8 @@ export default class OllamaPlugin extends Plugin {
 		this.loadMenu();
 	}
 
-	getModelUserFriendlyName(){
-		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'));
-		return firstToUpper(nameBeforeColon);
-	}
+	onunload() {
 
-	async saveChat() {
-		if(!this.fileManager.isFolderPath(FOLDER_NAME)) {
-			await this.fileManager.createFolder(FOLDER_NAME);
-		}
-
-		const filepath = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
-		const content: string[] = ["## Chat"];
-		for(const message of this.ui.chatMessages.get()) {
-			content.push("#### " + message.role + "@" + message.timestamp, "- " + message.content);
-		}
-
-		await this.fileManager.updateFile(filepath, content.join("\n"));
-		new Notice('Chat saved in: ' + filepath);
 	}
 
 	async activateViewInWorkspace(workspace: Workspace){
@@ -58,6 +42,11 @@ export default class OllamaPlugin extends Plugin {
 			leaf = leaves[0];
 		}
 		await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
+	}
+
+	getModelUserFriendlyName(){
+		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'));
+		return firstToUpper(nameBeforeColon);
 	}
 
 	loadAI(initialContext?: string){
@@ -80,11 +69,22 @@ export default class OllamaPlugin extends Plugin {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
-	async saveSettings() {
-		await this.saveData(this.settings);
+	async saveChat() {
+		if(!this.fileManager.isFolderPath(FOLDER_NAME)) {
+			await this.fileManager.createFolder(FOLDER_NAME);
+		}
+
+		const filepath = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
+		const content: string[] = ["## Chat"];
+		for(const message of this.ui.chatMessages.get()) {
+			content.push("#### " + message.role + "@" + message.timestamp, "- " + message.content);
+		}
+
+		await this.fileManager.updateFile(filepath, content.join("\n"));
+		new Notice('Chat saved in: ' + filepath);
 	}
 
-	onunload() {
-
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 }
