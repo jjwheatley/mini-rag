@@ -66,11 +66,7 @@ export default class OllamaPlugin extends Plugin {
 	}
 
 	getMenuTitleOfItem(filename?: string){
-		if(filename){
-			return "Open " + APP_NAME + " chat (context: \"" + filename + "\")"
-		}else{
-			return "Open " + APP_NAME + " chat (context-free)"
-		}
+		return "Open " + APP_NAME + " chat " + (filename? "(context: \"" + filename + "\")" :"(context-free)")
 	}
 
 	addMenuItemGeneralChats(menu: Menu){
