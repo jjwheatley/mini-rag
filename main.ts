@@ -1,4 +1,4 @@
-import {Menu, Notice, Plugin, TFile, TFolder, Workspace, WorkspaceLeaf} from 'obsidian';
+import {Menu, Notice, Plugin, TAbstractFile, TFile, TFolder, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
 import {DEFAULT_SETTINGS} from "./src/defaults";
@@ -11,8 +11,8 @@ import {Contextualizer} from "./src/classes/contextualizer";
 
 export default class OllamaPlugin extends Plugin {
 	ui: ChatWindow;
-	ai: OllamaWrapper
-	context: Contextualizer
+	ai: OllamaWrapper;
+	context: Contextualizer;
 	settings: PluginSettings;
 	fileManager: FileManager;
 
@@ -28,7 +28,6 @@ export default class OllamaPlugin extends Plugin {
 	}
 
 	getModelUserFriendlyName(){
-		//Capitalize the first letter of the name and return everything up to the ':' symbol
 		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'))
 		return firstToUpper(nameBeforeColon);
 	}
@@ -36,12 +35,8 @@ export default class OllamaPlugin extends Plugin {
 	registerItemsToContextMenuInFileNavigator(){
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
-				if (this.fileManager.isFile(file)) { // Single File: Add the same way we do from a note
-					this.addMenuItemForSingleFileContextChats(menu, file as TFile);
-				} else if (this.fileManager.isFolder(file)) { // Folder: Add files individually to context
-					this.addMenuItemForMultiFileContextChats(menu, file as TFolder);
-				}
-				this.addMenuItemGeneralChats(menu)
+				this.addMenuItemContextSensitiveChat(menu, file);
+				this.addMenuItemContextFreeChat(menu)
 			})
 		);
 	}
@@ -49,8 +44,8 @@ export default class OllamaPlugin extends Plugin {
 	registerItemsToContextMenuInNotes(){
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, _, {file}) => {
-				if(file) this.addMenuItemForSingleFileContextChats(menu, file)
-				this.addMenuItemGeneralChats(menu)
+				if(file) this.addMenuItemContextSensitiveChat(menu, file)
+				this.addMenuItemContextFreeChat(menu)
 			})
 		);
 	}
@@ -69,7 +64,7 @@ export default class OllamaPlugin extends Plugin {
 		return "Open " + APP_NAME + " chat " + (filename? "(context: \"" + filename + "\")" :"(context-free)")
 	}
 
-	addMenuItemGeneralChats(menu: Menu){
+	addMenuItemContextFreeChat(menu: Menu){
 		if(this.settings.isContextFreeChatsEnabled) {
 			menu.addItem((item) => {
 				item
@@ -85,9 +80,9 @@ export default class OllamaPlugin extends Plugin {
 		}
 	}
 
-	addMenuItemForSingleFileContextChats(menu: Menu, file: TFile){
+	addMenuItemContextSensitiveChat(menu: Menu, context: TAbstractFile){
 		menu.addItem((item) => {
-			const filename = this.fileManager.readFilenameWithoutExtension(file)
+			const filename = this.fileManager.readFilenameWithoutExtension(context)
 			item
 				.setTitle(this.getMenuTitleOfItem(filename))
 				.setIcon(ICON_NAME)
@@ -95,24 +90,11 @@ export default class OllamaPlugin extends Plugin {
 					await this.activateViewInWorkspace(this.app.workspace);
 					//Remove existing context and chat history
 					this.loadContextualizer()
-					await this.context.addFileToContext(file)
-					this.loadAI(this.context.getContextAsText())
-					this.ui.resetChat(filename)
-				});
-		});
-	}
-
-	addMenuItemForMultiFileContextChats(menu: Menu, folder: TFolder){
-		menu.addItem((item) => {
-			const filename = this.fileManager.readFilenameWithoutExtension(folder)
-			item
-				.setTitle(this.getMenuTitleOfItem(filename))
-				.setIcon(ICON_NAME)
-				.onClick(async () => {
-					await this.activateViewInWorkspace(this.app.workspace);
-					//Remove existing context and chat history
-					this.loadContextualizer()
-					await this.context.addFolderToContext(folder)
+					if(this.fileManager.isFile(context)){
+						await this.context.addFileToContext(context)
+					}else if(this.fileManager.isFolder(context)){
+						await this.context.addFolderToContext(context as TFolder)
+					}
 					this.loadAI(this.context.getContextAsText())
 					this.ui.resetChat(filename)
 				});
