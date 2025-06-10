@@ -58,11 +58,25 @@ export class SettingTab extends PluginSettingTab {
 			)
 	}
 
+	addEnableContextFreeChats(container: HTMLElement) {
+		new Setting(container)
+			.setName('Enable context-free chats')
+			.setDesc('Add the option for LLM chats without the context of a note or folder')
+			.addToggle(slider => slider
+				.setValue(this.plugin.settings.isContextFreeChatsEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.isContextFreeChatsEnabled = value;
+					await this.plugin.saveSettings();
+				})
+			)
+	}
+
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
 		this.addOllamaURL(containerEl);
 		this.addModelSelector(containerEl);
 		this.addHyperParameterTemperature(containerEl);
+		this.addEnableContextFreeChats(containerEl);
 	}
 }

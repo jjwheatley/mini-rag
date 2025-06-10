@@ -74,17 +74,19 @@ export default class OllamaPlugin extends Plugin {
 	}
 
 	addMenuItemGeneralChats(menu: Menu){
-		menu.addItem((item) => {
-			item
-				.setTitle(this.getMenuTitleOfItem())
-				.setIcon(ICON_NAME)
-				.onClick(async () => {
-					await this.activateViewInWorkspace(this.app.workspace);
-					//Remove existing context and chat history
-					this.loadAI()
-					this.ui.resetChat()
-				});
-		});
+		if(this.settings.isContextFreeChatsEnabled) {
+			menu.addItem((item) => {
+				item
+					.setTitle(this.getMenuTitleOfItem())
+					.setIcon(ICON_NAME)
+					.onClick(async () => {
+						await this.activateViewInWorkspace(this.app.workspace);
+						//Remove existing context and chat history
+						this.loadAI()
+						this.ui.resetChat()
+					});
+			});
+		}
 	}
 
 	addMenuItemForSingleFileContextChats(menu: Menu, file: TFile){

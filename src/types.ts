@@ -2,6 +2,7 @@ export interface PluginSettings {
 	aiModel: string;
 	ollamaURL: string;
 	temperature: number;
+	isContextFreeChatsEnabled: boolean;
 }
 
 export type MessageRoles = 'user' | 'assistant';
