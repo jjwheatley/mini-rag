@@ -98,7 +98,7 @@ export class ChatWindow extends ItemView {
 		this.setDisabledState(false)
 	}
 
-	async onClose() {// ToDo: Check to see if there are resources to release
-		// Nothing to clean up.
+	async onClose() {
+
 	}
 }
