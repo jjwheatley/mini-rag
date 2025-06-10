@@ -17,7 +17,7 @@ export class ChatConversationWindow {
 		this.htmlElement.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
 	}
 
-	async addToConversation(text: string, isResponse: boolean) {
+	addToConversation(text: string, isResponse: boolean) {
 		const element = this.htmlElement.createEl('div', { text: text, cls: CSS_CLASS_PREFIX+"ConvoBox " + (isResponse ? "response" : "query")});
 
 		element.onclick = async () => {

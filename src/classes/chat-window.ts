@@ -50,12 +50,12 @@ export class ChatWindow extends ItemView {
 
 	async sendTextAsChatMessage(text: string) {
 		// Add user's Query to conversation
-		await this.conversationWindow.addToConversation(text, false)
+		this.conversationWindow.addToConversation(text, false)
 		this.chatMessages.addUserMessage(text)
 		this.scrollToEnd()
 		// Query AI & add response to conversation
 		const answer = await this.plugin.ai.sendQuestion(text)
-		await this.conversationWindow.addToConversation(answer, true)
+		this.conversationWindow.addToConversation(answer, true)
 		this.chatMessages.addAssistantMessage(answer)
 		this.scrollToEnd()
 	}
