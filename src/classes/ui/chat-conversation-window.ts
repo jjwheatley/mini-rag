@@ -4,16 +4,17 @@ import {CSS_CLASS_PREFIX} from "../../constants";
 
 export class ChatConversationWindow {
 	htmlElement: HTMLSpanElement;
-	plugin: OllamaPlugin
+	plugin: OllamaPlugin;
 
 	constructor(plugin: OllamaPlugin, parent: Element) {
-		this.plugin = plugin
+		this.plugin = plugin;
 		this.htmlElement = parent.createEl("div");
-		this.addConvoHeading()
+		this.addConvoHeading();
 	}
 
-	clear(){
-		this.htmlElement.empty()
+	addConvoHeading(chatSubject?: string) {
+		this.htmlElement.createEl('h3', { text: 'Mini-RAG Chat with ' + this.plugin.getModelUserFriendlyName()});
+		this.htmlElement.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
 	}
 
 	async addToConversation(text: string, isResponse: boolean) {
@@ -21,12 +22,11 @@ export class ChatConversationWindow {
 
 		element.onclick = async () => {
 			await navigator.clipboard.writeText(text);
-			new Notice("Message Copied")
+			new Notice("Message Copied");
 		}
 	}
 
-	addConvoHeading(chatSubject?: string) {
-		this.htmlElement.createEl('h3', { text: 'Mini-RAG Chat with ' + this.plugin.getModelUserFriendlyName()});
-		this.htmlElement.createEl('div', { text: chatSubject ? 'Context: ' + chatSubject : "Context-Free"});
+	clear(){
+		this.htmlElement.empty();
 	}
 }
