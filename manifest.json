@@ -3,7 +3,7 @@
 	"name": "Mini-Rag",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "",
+	"description": "Leverage Retrieval Augmented Generation (RAG) for your Obsidian notes, using a locally running LLM or AI.",
 	"author": "jjwheatley",
 	"authorUrl": "https://github.com/jjwheatley/",
 	"isDesktopOnly": true
