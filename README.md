@@ -1,9 +1,10 @@
 # Mini-RAG
 *Local Retrieval Augmented Generation for your Obsidian notes*
 
---- 
+---
+
 ## What is Mini-RAG?
-Mini-RAG lets you chat with a locally running LLM, in the context of selected Obsidian notes and folders.
+Mini-RAG lets you chat with a locally running LLM, in the context of selected Obsidian notes and folders. For the LLM, you can select any locally installed Ollama model (see: Configure Mini-Rag).
 
 ## Setting Up Mini-RAG
 ### Install Ollama
@@ -16,6 +17,7 @@ Open "options" by clicking on the gear icon then navigate to `Community Plugins 
 - Ollama URL: If left unset, Ollama's default URL is used
 - Model: From a dropdown list of AI Models installed on your local Ollama setup
 - Temperature: Higher temperatures give more creative response, but also lead to more hallucinations
+- Enable context-free chats: Provides the option to chat with an LLM without the context of a note or folder
 
 
 ## Using Mini-RAG
@@ -24,6 +26,7 @@ This is done from the right-click context menu. You will see the "Mini-RAG" opti
 - Right-Click within a note
 - Right-Click a note in the sidebar
 - Right-Click a folder in the sidebar
+- Open a note's triple-dot menu
 
 ### Saving Conversations
 To save a Mini-RAG conversation, click the "Save" button. If you continue the conversation after this, you will need to click "save" again to update the saved conversation.
