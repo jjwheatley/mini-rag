@@ -7,10 +7,6 @@ export class FileManager {
 		this.vault = vault;
 	}
 
-	isFolder(abstractFile: TAbstractFile) {
-		return (abstractFile instanceof TFolder)
-	}
-
 	isFile(abstractFile: TAbstractFile) {
 		return (abstractFile instanceof TFile)
 	}

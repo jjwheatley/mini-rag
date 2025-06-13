@@ -1,7 +1,7 @@
 import {APP_NAME, ICON_NAME, VIEW_TYPE} from "../constants";
 import OllamaPlugin from "../../main";
 import {ChatWindow} from "./chat-window";
-import {Menu, TAbstractFile, TFolder} from "obsidian";
+import {Menu, TAbstractFile, TFile, TFolder} from "obsidian";
 
 export class MenuManager {
 	plugin: OllamaPlugin;
@@ -40,10 +40,10 @@ export class MenuManager {
 						await this.plugin.activateViewInWorkspace(this.plugin.app.workspace);
 						//Remove existing context and chat history
 						this.plugin.loadContextualizer();
-						if (this.plugin.fileManager.isFile(context)) {
+						if (context instanceof TFile) {
 							await this.plugin.context.addFileToContext(context);
-						} else if (this.plugin.fileManager.isFolder(context)) {
-							await this.plugin.context.addFolderToContext(context as TFolder);
+						} else if (context instanceof TFolder) {
+							await this.plugin.context.addFolderToContext(context);
 						}
 						this.plugin.loadAI(this.plugin.context.getContextAsText());
 						this.plugin.ui.resetChat(filename);
