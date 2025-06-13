@@ -61,6 +61,11 @@
 	display: none;
 }
 
+.miniRagPluginSummarizeButton.hidden{
+	display: none;
+}
+
+
 @keyframes miniRagPluginTripleDot {
 	0% {
 		background-color: #FFF2;

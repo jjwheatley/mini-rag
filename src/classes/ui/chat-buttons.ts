@@ -40,7 +40,7 @@ export class ChatButtons{
 	}
 
 	addSummarizeButton(parentEl: HTMLDivElement) {
-		const summarizeButton = parentEl.createEl("button", {text: "Summarize"})
+		const summarizeButton = parentEl.createEl("button", {text: "Summarize", cls: CSS_CLASS_PREFIX+"SummarizeButton"});
 		summarizeButton.addEventListener("click", async () => {
 			if (!this.blockButtonEvents) {
 				await this.chatWindow.sendTextAsChatMessage("Summarize the file")
@@ -74,11 +74,12 @@ export class ChatButtons{
 		this.sendButton.removeAttribute('disabled');
 	}
 
-	showSummarizeButton(){
-		this.summarizeButton.style.display = "inline-flex";
+	hideSummarizeButton(){
+		this.summarizeButton.classList.add("hidden");
 	}
 
-	hideSummarizeButton(){
-		this.summarizeButton.style.display = "none";
+	showSummarizeButton(){
+		this.summarizeButton.classList.remove("hidden");
 	}
+
 }
