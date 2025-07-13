@@ -11,7 +11,6 @@ import {Contextualizer} from "./src/classes/contextualizer";
 import {MenuManager} from "./src/classes/menu-manager";
 
 export default class OllamaPlugin extends Plugin {
-	ui: ChatWindow;
 	ai: OllamaWrapper;
 	menu: MenuManager;
 	context: Contextualizer;
