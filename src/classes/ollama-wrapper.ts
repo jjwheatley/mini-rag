@@ -15,8 +15,12 @@ export class OllamaWrapper{
 
 	sendInitialContext(initialContext: string){
 		const prompt = CONTEXT_TEMPLATE + initialContext
-		this.plugin.ui.setDisabledState(true);
-		this.sendQuestion(prompt).then(() => this.plugin.ui.setDisabledState(false));
+		this.plugin.getChatWindow().then(c => {
+			c.setDisabledState(true)
+			this.sendQuestion(prompt).then(
+				() => c.setDisabledState(false)
+			);
+		})
 	}
 
 	async getModelList(){

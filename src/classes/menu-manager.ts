@@ -23,7 +23,7 @@ export class MenuManager {
 						await this.plugin.activateViewInWorkspace(this.plugin.app.workspace);
 						//Remove existing context and chat history
 						this.plugin.loadAI()
-						this.plugin.ui.resetChat()
+						this.plugin.getChatWindow().then(c => c.resetChat())
 					});
 			});
 		}
@@ -46,7 +46,8 @@ export class MenuManager {
 							await this.plugin.context.addFolderToContext(context);
 						}
 						this.plugin.loadAI(this.plugin.context.getContextAsText());
-						this.plugin.ui.resetChat(filename);
+
+						this.plugin.getChatWindow().then(c => c.resetChat(filename))
 					});
 			});
 		}
@@ -64,11 +65,11 @@ export class MenuManager {
 		this.plugin.registerView(
 			VIEW_TYPE,
 			(leaf) => {
-				this.plugin.ui = new ChatWindow(leaf, this.plugin);
-				return this.plugin.ui;
+				return new ChatWindow(leaf, this.plugin);
 			}
 		);
 	}
+
 
 	registerItemsToContextMenuInNotes(){
 		this.plugin.registerEvent(

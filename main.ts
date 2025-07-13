@@ -31,6 +31,17 @@ export default class OllamaPlugin extends Plugin {
 
 	}
 
+	async getChatWindow() {
+		let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
+
+
+		if (!leaf) { // A leaf with our view already exists, use it
+			leaf = await this.activateViewInWorkspace(this.app.workspace);
+		}
+
+		return leaf.view as ChatWindow;
+	}
+
 	async activateViewInWorkspace(workspace: Workspace){
 		let leaf: WorkspaceLeaf;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
@@ -42,6 +53,8 @@ export default class OllamaPlugin extends Plugin {
 			leaf = leaves[0];
 		}
 		await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
+
+		return leaf;
 	}
 
 	getModelUserFriendlyName(){
@@ -73,10 +86,11 @@ export default class OllamaPlugin extends Plugin {
 		if(!this.fileManager.isFolderPath(FOLDER_NAME)) {
 			await this.fileManager.createFolder(FOLDER_NAME);
 		}
+		const chatWindow = await this.getChatWindow();
 
-		const filepath = FOLDER_NAME +'/'+ this.ui.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
+		const filepath = FOLDER_NAME +'/'+ chatWindow.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
 		const content: string[] = ["## Chat"];
-		for(const message of this.ui.chatMessages.get()) {
+		for(const message of chatWindow.chatMessages.get()) {
 			content.push("#### " + message.role + "@" + message.timestamp, "- " + message.content);
 		}
 
