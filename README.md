@@ -22,14 +22,25 @@ Open "options" by clicking on the gear icon then navigate to `Community Plugins 
 
 ## Using Mini-RAG
 ### Opening a Mini-RAG Chat
-This is done from the right-click context menu. You will see the "Mini-RAG" option when you:
+You can open a chat from the right-click context menu, or via the Command Palette (`Ctrl/Cmd+P` → "Mini-RAG: Open chat panel"). You will see the Mini-RAG menu option when you:
 - Right-Click within a note
 - Right-Click a note in the sidebar
 - Right-Click a folder in the sidebar
 - Open a note's triple-dot menu
 
+### Responses
+Responses stream in token-by-token as the model generates them. This is by design, to give a more responsive feel to the behaviour.
+
+### Copying Messages
+Click any chat bubble (yours or the model's) to copy its text to the clipboard.
+
 ### Saving Conversations
-To save a Mini-RAG conversation, click the "Save" button. If you continue the conversation after this, you will need to click "save" again to update the saved conversation.
+To save a Mini-RAG conversation, click the **Save** (disk) icon. If you continue the conversation after saving, click Save again to update the file.
+
+To save under a custom name, click the **chevron** (▾) next to the Save button and choose **Save as…**
+
+### Summarizing
+When a chat has context (opened from a file or folder), a **Summarize** (sparkles) button appears. Click it to ask the model to summarize the context file.
 
 --- 
 

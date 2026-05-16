@@ -1,4 +1,4 @@
-import {Notice, Plugin, Workspace, WorkspaceLeaf} from 'obsidian';
+import {normalizePath, Notice, Plugin, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
 import {DEFAULT_SETTINGS} from "./src/defaults";
@@ -6,16 +6,18 @@ import {PluginSettings} from "./src/types";
 import {FOLDER_NAME, VIEW_TYPE} from "./src/constants";
 import {OllamaWrapper} from "./src/classes/ollama-wrapper";
 import {FileManager} from "./src/classes/file-manager";
-import {firstToUpper} from "./src/utils";
+import {buildChatSaveFilename, firstToUpper, formatChatAsMarkdown} from "./src/utils";
 import {Contextualizer} from "./src/classes/contextualizer";
 import {MenuManager} from "./src/classes/menu-manager";
+import {SaveChatAsModal} from "./src/classes/ui/save-chat-as-modal";
 
-export default class OllamaPlugin extends Plugin {
+export default class MiniRagPlugin extends Plugin {
 	ai: OllamaWrapper;
 	menu: MenuManager;
 	context: Contextualizer;
 	settings: PluginSettings;
 	fileManager: FileManager;
+	contextLoadSeq = 0;
 
 	async onload() {
 		await this.loadSettings();
@@ -23,46 +25,115 @@ export default class OllamaPlugin extends Plugin {
 		this.loadContextualizer();
 		this.loadAI();
 		this.addSettingTab(new SettingTab(this.app, this));
+		this.registerView(VIEW_TYPE, (leaf) => new ChatWindow(leaf, this));
 		this.loadMenu();
+		this.addCommand({
+			id: 'open-chat',
+			name: 'Open chat panel',
+			callback: () => { void this.activateViewInWorkspace(this.app.workspace); },
+		});
+		this.app.workspace.onLayoutReady(() => { void this.replayContextInit(); });
+	}
+
+	private async replayContextInit(): Promise<void> {
+		const seq = ++this.contextLoadSeq;
+		const {lastContextPath, lastContextType} = this.settings;
+
+		if (!lastContextPath || !lastContextType) return;
+
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE);
+		if (leaves.length === 0) {
+			return;
+		}
+
+		const chatWindow = leaves[0].view;
+		if (!(chatWindow instanceof ChatWindow)) {
+			return;
+		}
+
+		if (lastContextType === 'file') {
+			const file = this.app.vault.getFileByPath(lastContextPath);
+			if (!file) {
+				new Notice(`Mini-RAG: context file not found — "${lastContextPath}"`);
+				return;
+			}
+			await this.context.addFileToContext(file);
+			chatWindow.resetChat(file.basename);
+		} else {
+			const folder = this.app.vault.getFolderByPath(lastContextPath);
+			if (!folder) {
+				new Notice(`Mini-RAG: context folder not found — "${lastContextPath}"`);
+				return;
+			}
+			await this.context.addFolderToContext(folder);
+			chatWindow.resetChat(folder.name);
+		}
+
+		if (seq !== this.contextLoadSeq) return;
+
+		chatWindow.setAwaitingResponse(true);
+		try {
+			await this.context.buildIndex(this.ai);
+			if (seq !== this.contextLoadSeq) return;
+		} catch (e) {
+			if (seq === this.contextLoadSeq) {
+				chatWindow.showIndexError(this.settings.embeddingModel);
+			}
+		} finally {
+			if (seq === this.contextLoadSeq) {
+				chatWindow.setAwaitingResponse(false);
+			}
+		}
 	}
 
 	onunload() {
-
+		this.ai?.abort();
 	}
 
-	async getChatWindow() {
+	async getChatWindow(): Promise<ChatWindow> {
 		let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
 
-
-		if (!leaf) { // A leaf with our view already exists, use it
+		if (!leaf) { // No existing leaf — open one
 			leaf = await this.activateViewInWorkspace(this.app.workspace);
 		}
 
-		return leaf.view as ChatWindow;
+		const view = leaf.view;
+		if (!(view instanceof ChatWindow)) {
+			throw new Error('Mini-RAG: unexpected view type on the chat leaf.');
+		}
+		return view;
 	}
 
-	async activateViewInWorkspace(workspace: Workspace){
+	async activateViewInWorkspace(workspace: Workspace): Promise<WorkspaceLeaf> {
 		let leaf: WorkspaceLeaf;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE);
 
-		if (leaves.length === 0) { // A leaf with our view already exists, use it
-			leaf = workspace.getRightLeaf(false) as WorkspaceLeaf;
+		if (leaves.length === 0) { // View isn't found in workspace, create in sidebar as new leaf
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (!rightLeaf) {
+				throw new Error("Mini-RAG: could not open a panel in the right sidebar.");
+			}
+			leaf = rightLeaf;
 			await leaf.setViewState({type: VIEW_TYPE, active: true});
-		} else { // View isn't found in workspace, create in sidebar as new leaf
+		} else { // A leaf with our view already exists, use it
 			leaf = leaves[0];
 		}
-		await workspace.revealLeaf(leaf);// Expand the sidebar to show leaf if it's collapsed
+		await workspace.revealLeaf(leaf);
 
 		return leaf;
 	}
 
 	getModelUserFriendlyName(){
-		const nameBeforeColon = this.settings.aiModel.slice(0, this.settings.aiModel.indexOf(':'));
+		if (!this.settings.aiModel) {
+			return 'your model';
+		}
+		const colonIdx = this.settings.aiModel.indexOf(':');
+		const nameBeforeColon = colonIdx === -1 ? this.settings.aiModel : this.settings.aiModel.slice(0, colonIdx);
 		return firstToUpper(nameBeforeColon);
 	}
 
-	loadAI(initialContext?: string){
-		this.ai = new OllamaWrapper(this, initialContext ?? '');
+	loadAI(){
+		this.ai = new OllamaWrapper(this);
 	}
 
 	loadContextualizer(){
@@ -81,20 +152,61 @@ export default class OllamaPlugin extends Plugin {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
-	async saveChat() {
-		if(!this.fileManager.isFolderPath(FOLDER_NAME)) {
+	async ensureChatFolder(): Promise<void> {
+		if (!this.fileManager.isFolderPath(FOLDER_NAME)) {
 			await this.fileManager.createFolder(FOLDER_NAME);
 		}
-		const chatWindow = await this.getChatWindow();
+	}
 
-		const filepath = FOLDER_NAME +'/'+ chatWindow.chatStarted.getTime()+' Chat with '+ this.getModelUserFriendlyName()+'.md';
-		const content: string[] = ["## Chat"];
-		for(const message of chatWindow.chatMessages.get()) {
-			content.push("#### " + message.role + "@" + message.timestamp, "- " + message.content);
+	async writeChatToFile(chatWindow: ChatWindow, filepath: string): Promise<void> {
+		const content = formatChatAsMarkdown(chatWindow.chatMessages.get(), {
+			model: this.settings.aiModel,
+			modelDisplay: this.getModelUserFriendlyName(),
+			started: chatWindow.chatStarted,
+			updated: new Date(),
+			contextSubject: chatWindow.chatSubject,
+		});
+
+		await this.fileManager.updateFile(filepath, content);
+		chatWindow.savedChatPath = filepath;
+	}
+
+	async saveChat(chatWindow: ChatWindow, saveAs = false) {
+		if (chatWindow.chatMessages.get().length === 0) {
+			new Notice('Nothing to save — start a conversation first.');
+			return;
 		}
 
-		await this.fileManager.updateFile(filepath, content.join("\n"));
-		new Notice('Chat saved in: ' + filepath);
+		try {
+			await this.ensureChatFolder();
+
+			if (saveAs) {
+				new SaveChatAsModal(this.app, this, chatWindow).open();
+				return;
+			}
+
+			const hadSavedPath = chatWindow.savedChatPath !== null;
+			let filepath = chatWindow.savedChatPath;
+
+			if (!filepath) {
+				const filename = buildChatSaveFilename(
+					chatWindow.chatStarted,
+					this.getModelUserFriendlyName()
+				);
+				filepath = normalizePath(`${FOLDER_NAME}/${filename}`);
+			}
+
+			await this.writeChatToFile(chatWindow, filepath);
+
+			if (!hadSavedPath) {
+				new Notice(`Chat saved: ${filepath}`);
+			} else {
+				new Notice(`Chat updated: ${filepath}`);
+			}
+		} catch (e) {
+			const detail = e instanceof Error ? e.message : String(e);
+			new Notice(`Mini-RAG: failed to save chat. ${detail}`);
+		}
 	}
 
 	async saveSettings() {

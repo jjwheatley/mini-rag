@@ -1,31 +1,45 @@
 import {Message, MessageRoles} from "../../types";
 import {getTimestampFromDate} from "../../utils";
 
-
-export class ChatMessages{
-	messages: Message[];
+export class ChatMessages {
+	private messages: Message[];
 
 	constructor() {
 		this.messages = [];
 	}
 
 	addMessage(content: string, role: MessageRoles): void {
-		this.messages.push({role, content, timestamp: getTimestampFromDate(new Date())})
+		this.messages.push({role, content, timestamp: getTimestampFromDate(new Date())});
 	}
 
 	addUserMessage(message: string): void {
-		this.addMessage(message, 'user');
+		this.addMessage(message, "user");
 	}
 
-	addAssistantMessage(message: string): void {
-		this.addMessage(message, 'assistant');
+	beginAssistantMessage(): void {
+		this.messages.push({
+			role: "assistant",
+			content: "",
+			timestamp: getTimestampFromDate(new Date()),
+		});
 	}
 
-	clear(){
+	setLastAssistantContent(content: string): void {
+		const last = this.messages[this.messages.length - 1];
+		if (last?.role === "assistant") {
+			last.content = content;
+		}
+	}
+
+	removeLastMessage(): void {
+		this.messages.pop();
+	}
+
+	clear() {
 		this.messages = [];
 	}
 
-	get(){
+	get() {
 		return this.messages;
 	}
 }
