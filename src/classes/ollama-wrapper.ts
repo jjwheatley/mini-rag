@@ -32,13 +32,20 @@ export class OllamaWrapper {
 		this.plugin = plugin;
 	}
 
+	get resolvedEmbeddingModel(): string {
+		if (this.plugin.settings.dedicatedEmbeddingEnabled && this.plugin.settings.embeddingModel) {
+			return this.plugin.settings.embeddingModel;
+		}
+		return this.plugin.settings.aiModel;
+	}
+
 	// Polls /api/ps until the embedding model runner has fully unloaded.
 	// keep_alive:0 only schedules the unload — the runner may still hold pinned host
 	// memory for a moment after the embed call returns, which causes CUDA init to fail
 	// when the chat model runner starts immediately after.
 	// Returns false if the model was still loaded when the timeout expired.
 	async waitForEmbeddingModelUnloaded(timeoutMs = 10000): Promise<boolean> {
-		const model = this.plugin.settings.embeddingModel;
+		const model = this.resolvedEmbeddingModel;
 		if (!model) return true;
 		const deadline = Date.now() + timeoutMs;
 		while (Date.now() < deadline) {
@@ -74,7 +81,7 @@ export class OllamaWrapper {
 				method: "POST",
 				url: `${this.plugin.settings.ollamaURL}${OLLAMA_API.embed}`,
 				body: JSON.stringify({
-					model: this.plugin.settings.embeddingModel,
+					model: this.resolvedEmbeddingModel,
 					input: texts,
 					keep_alive: 0,
 					// Force CPU so the embedding runner never competes with the chat model for VRAM.

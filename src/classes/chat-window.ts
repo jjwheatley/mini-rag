@@ -295,7 +295,7 @@ export class ChatWindow extends ItemView {
 		try {
 			await this.plugin.context.buildIndex(this.plugin.ai);
 		} catch {
-			this.showIndexError(this.plugin.settings.embeddingModel);
+			this.showIndexError(this.plugin.ai.resolvedEmbeddingModel);
 		} finally {
 			this.setAwaitingResponse(false);
 		}

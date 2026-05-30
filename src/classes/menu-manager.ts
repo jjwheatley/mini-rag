@@ -78,7 +78,7 @@ export class MenuManager {
 						try {
 							await this.plugin.context.buildIndex(this.plugin.ai);
 						} catch {
-							chatWindow.showIndexError(this.plugin.settings.embeddingModel);
+							chatWindow.showIndexError(this.plugin.ai.resolvedEmbeddingModel);
 						} finally {
 							if (seq === this.plugin.contextLoadSeq) {
 								chatWindow.setAwaitingResponse(false);

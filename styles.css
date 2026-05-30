@@ -173,6 +173,9 @@
 }
 
 .mini-rag-settings-status {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
 	color: var(--text-muted);
 }
 
@@ -182,6 +185,43 @@
 
 .mini-rag-settings-status.is-warning {
 	color: var(--text-warning, var(--color-orange));
+}
+
+.mini-rag-settings-status code {
+	line-height: inherit;
+}
+
+.mini-rag-settings-status .mini-rag-inline-copy-btn {
+	align-self: center;
+}
+
+.mini-rag-settings-status.is-warning code {
+	color: var(--text-normal);
+}
+
+.mini-rag-settings-status.is-warning > div > div:last-child {
+	color: var(--text-muted);
+}
+
+.mini-rag-settings-status.is-success {
+	color: var(--text-success, var(--color-green));
+}
+
+.mini-rag-inline-copy-btn {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 6px;
+	padding: 2px 4px;
+	vertical-align: middle;
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-s);
+	color: var(--icon-color);
+	cursor: pointer;
+}
+
+.mini-rag-inline-copy-btn:hover {
+	background-color: var(--background-modifier-hover);
 }
 
 /* Index Error Screen - Start */

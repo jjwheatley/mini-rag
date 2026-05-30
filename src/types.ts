@@ -1,6 +1,7 @@
 export interface PluginSettings {
 	aiModel: string;
 	embeddingModel: string;
+	dedicatedEmbeddingEnabled: boolean;
 	ragTopK: number;
 	ollamaURL: string;
 	temperature: number;
