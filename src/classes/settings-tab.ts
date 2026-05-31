@@ -51,7 +51,7 @@ export class SettingTab extends PluginSettingTab {
 
 	addModelSelector(container: HTMLElement) {
 		this.modelSetting = new Setting(container)
-			.setName('Model')
+			.setName('Chat Model')
 			.setDesc('Loading models from Ollama…')
 			.addExtraButton((button) => {
 				button
