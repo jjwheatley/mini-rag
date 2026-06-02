@@ -44,7 +44,17 @@ To save under a custom name, click the **chevron** (▾) next to the Save button
 ### Summarizing
 When a chat has context (opened from a file or folder), a **Summarize** (sparkles) button appears. Click it to ask the model to summarize the context file.
 
---- 
+---
+
+## Privacy & Permissions
+
+### Network Usage
+Mini-RAG communicates exclusively with your locally-running Ollama server (default: `http://localhost:11434`). No data is sent to any external server — all requests stay on your machine.
+
+### Clipboard Access
+Mini-RAG writes to the clipboard when you click a **Copy** button (e.g. to copy a chat message, or to copy an `ollama pull` command from the settings panel). It never reads clipboard content.
+
+---
 
 ## Author
 For more about the author visit [JJWheatley.com](https://www.jjwheatley.com/)
