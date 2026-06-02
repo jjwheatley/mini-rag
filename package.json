@@ -1,6 +1,6 @@
 {
 	"name": "mini-rag",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Leverage Retrieval Augmented Generation (RAG) for your notes, using a locally running LLM or AI.",
 	"main": "main.js",
 	"scripts": {
