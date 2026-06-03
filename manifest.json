@@ -1,7 +1,7 @@
 {
 	"id": "mini-rag",
 	"name": "Mini-RAG",
-	"version": "2.0.1",
+	"version": "2.1.0",
 	"minAppVersion": "1.7.2",
 	"description": "Leverage Retrieval Augmented Generation (RAG) for your notes, using a locally running LLM or AI.",
 	"author": "jjwheatley",
