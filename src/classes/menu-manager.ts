@@ -78,7 +78,11 @@ export class MenuManager {
 						try {
 							await this.plugin.context.buildIndex(this.plugin.ai);
 						} catch {
-							chatWindow.showIndexError(this.plugin.ai.resolvedEmbeddingModel);
+							if (this.plugin.settings.dedicatedEmbeddingEnabled) {
+								chatWindow.showIndexError(this.plugin.ai.resolvedEmbeddingModel);
+							} else {
+								new Notice('Mini-RAG: failed to build the search index. Check that Ollama is running.');
+							}
 						} finally {
 							if (seq === this.plugin.contextLoadSeq) {
 								chatWindow.setAwaitingResponse(false);

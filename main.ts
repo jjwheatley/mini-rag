@@ -75,9 +75,13 @@ export default class MiniRagPlugin extends Plugin {
 		try {
 			await this.context.buildIndex(this.ai);
 			if (seq !== this.contextLoadSeq) return;
-		} catch (e) {
+		} catch {
 			if (seq === this.contextLoadSeq) {
-				chatWindow.showIndexError(this.settings.embeddingModel);
+				if (this.settings.dedicatedEmbeddingEnabled) {
+					chatWindow.showIndexError(this.ai.resolvedEmbeddingModel);
+				} else {
+					new Notice('Mini-RAG: failed to build the search index. Check that Ollama is running.');
+				}
 			}
 		} finally {
 			if (seq === this.contextLoadSeq) {

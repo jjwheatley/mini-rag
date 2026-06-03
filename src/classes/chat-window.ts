@@ -304,6 +304,7 @@ export class ChatWindow extends ItemView {
 	}
 
 	resetChat(chatSubject?: string) {
+		this.hideIndexError();
 		this.chatMessages.clear();
 		this.chatStarted = new Date();
 		this.chatSubject = chatSubject;
