@@ -77,11 +77,15 @@ export class MenuManager {
 						chatWindow.setAwaitingResponse(true);
 						try {
 							await this.plugin.context.buildIndex(this.plugin.ai);
-						} catch {
+						} catch (e) {
 							if (this.plugin.settings.dedicatedEmbeddingEnabled) {
 								chatWindow.showIndexError(this.plugin.ai.resolvedEmbeddingModel);
+							} else if (/status 501/.test(e instanceof Error ? e.message : String(e))) {
+								// Chat model doesn't support embeddings — fall back to full context injection.
+								// hasContext() is true so sendTextAsChatMessage will use getRawContext().
 							} else {
-								new Notice('Mini-RAG: failed to build the search index. Check that Ollama is running.');
+								const detail = e instanceof Error ? e.message : String(e);
+								new Notice(`Mini-RAG: failed to build index — ${detail}`);
 							}
 						} finally {
 							if (seq === this.plugin.contextLoadSeq) {

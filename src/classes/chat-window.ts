@@ -89,9 +89,11 @@ export class ChatWindow extends ItemView {
 			let prompt = trimmed;
 			if (this.plugin.context.hasIndex()) {
 				const queryEmbedding = await this.plugin.ai.getEmbedding(trimmed);
-				const unloaded = await this.plugin.ai.waitForEmbeddingModelUnloaded();
-				if (!unloaded) {
-					new Notice('Mini-RAG: embedding model did not unload in time — GPU errors may follow.');
+				if (this.plugin.settings.dedicatedEmbeddingEnabled) {
+					const unloaded = await this.plugin.ai.waitForEmbeddingModelUnloaded();
+					if (!unloaded) {
+						new Notice('Mini-RAG: embedding model did not unload in time — GPU errors may follow.');
+					}
 				}
 				const relevantContext = this.plugin.context.getRelevantContext(
 					queryEmbedding,
@@ -99,6 +101,11 @@ export class ChatWindow extends ItemView {
 				);
 				if (relevantContext) {
 					prompt = relevantContext + '\n\nQuestion: ' + trimmed;
+				}
+			} else if (this.plugin.context.hasContext()) {
+				const fullContext = this.plugin.context.getRawContext();
+				if (fullContext) {
+					prompt = fullContext + '\n\nQuestion: ' + trimmed;
 				}
 			}
 
@@ -141,7 +148,7 @@ export class ChatWindow extends ItemView {
 		this.chatMessages.beginAssistantMessage();
 
 		try {
-			const allContext = this.plugin.context.getAllContext();
+			const allContext = this.plugin.context.getAllContext() || this.plugin.context.getRawContext();
 			const prompt = allContext
 				? `Please summarize the following content:\n\n${allContext}`
 				: 'Please summarize.';

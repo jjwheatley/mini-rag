@@ -80,23 +80,40 @@ export class OllamaWrapper {
 	}
 
 	async getEmbeddings(texts: string[]): Promise<number[][]> {
-		return withRetry(async () => {
-			const result = await requestUrl({
-				method: "POST",
-				url: `${this.plugin.settings.ollamaURL}${OLLAMA_API.embed}`,
-				body: JSON.stringify({
-					model: this.resolvedEmbeddingModel,
-					input: texts,
-					keep_alive: 0,
-					// Force CPU so the embedding runner never competes with the chat model for VRAM.
-					options: {num_gpu: 0},
-				}),
-			});
-			if (result.json.error) {
-				throw new Error(formatOllamaError(String(result.json.error)));
-			}
-			return result.json.embeddings as number[][];
-		});
+		const dedicated = this.plugin.settings.dedicatedEmbeddingEnabled;
+		// Capture the last thrown error so the shouldAbort callback can inspect it
+		// and skip retries for permanent failures (e.g. 501 model-capability errors).
+		let lastErr: unknown;
+		return withRetry(
+			async () => {
+				try {
+					const result = await requestUrl({
+						method: "POST",
+						url: `${this.plugin.settings.ollamaURL}${OLLAMA_API.embed}`,
+						body: JSON.stringify({
+							model: this.resolvedEmbeddingModel,
+							input: texts,
+							// When a dedicated embedding model is used, force CPU and unload immediately so
+							// it doesn't compete with the chat model for VRAM. When the chat model doubles
+							// as the embedding model these options must be omitted — it's already on the
+							// GPU and keep_alive:0 would unload it mid-conversation.
+							...(dedicated && {keep_alive: 0, options: {num_gpu: 0}}),
+						}),
+					});
+					if (result.json.error) {
+						// noinspection ExceptionCaughtLocallyJS
+						throw new Error(formatOllamaError(String(result.json.error)));
+					}
+					return result.json.embeddings as number[][];
+				} catch (e) {
+					lastErr = e;
+					throw e;
+				}
+			},
+			2,
+			1000,
+			() => /status 501/.test(lastErr instanceof Error ? lastErr.message : String(lastErr ?? '')),
+		);
 	}
 
 	async getModelList(): Promise<string[]> {

@@ -74,6 +74,19 @@ export class Contextualizer {
 		return this.index.size > 0;
 	}
 
+	hasContext(): boolean {
+		return this.contextPaths.size > 0;
+	}
+
+	getRawContext(): string {
+		const parts: string[] = [];
+		for (const [path, text] of this.contextPaths) {
+			const filename = path.split('/').pop() ?? path;
+			parts.push(`[${filename}]\n${text}`);
+		}
+		return parts.join('\n\n---\n\n');
+	}
+
 	getRelevantContext(queryEmbedding: number[], topK: number): string {
 		const chunks = this.index.query(queryEmbedding, topK);
 		if (chunks.length === 0) return '';
