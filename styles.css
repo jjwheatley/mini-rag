@@ -296,6 +296,36 @@
 
 /* Index Error Screen - End */
 
+.mini-rag-model-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.mini-rag-model-row h3 {
+	margin: 0;
+}
+
+.mini-rag-model-switch-divider {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	align-self: stretch;
+	padding: 8px 0;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.mini-rag-model-switch-line {
+	flex: 1;
+	height: 1px;
+	background-color: var(--background-modifier-border);
+}
+
+.mini-rag-model-switch-label {
+	white-space: nowrap;
+}
+
 /* Loading Animation - Start */
 .mini-rag-loader {
 	width: 16px;

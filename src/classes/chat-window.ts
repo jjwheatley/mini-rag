@@ -51,12 +51,14 @@ export class ChatWindow extends ItemView {
 			this.buttons.setSaveEnabled(false);
 			this.buttons.setSummarizeEnabled(false);
 			this.input.setSendEnabled(false);
+			this.conversationWindow.setModelSelectorEnabled(false);
 		} else {
 			this.loader.hide();
 			this.buttons.setSendEnabled(true);
 			this.buttons.setSaveEnabled(true);
 			this.buttons.setSummarizeEnabled(true);
 			this.input.setSendEnabled(true);
+			this.conversationWindow.setModelSelectorEnabled(true);
 		}
 	}
 

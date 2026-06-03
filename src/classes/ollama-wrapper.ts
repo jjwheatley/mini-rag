@@ -28,6 +28,10 @@ export class OllamaWrapper {
 		this.abortController = null;
 	}
 
+	clearContext() {
+		this.context = [];
+	}
+
 	constructor(plugin: MiniRagPlugin) {
 		this.plugin = plugin;
 	}
