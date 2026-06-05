@@ -311,6 +311,19 @@ export class SettingTab extends PluginSettingTab {
 				}));
 	}
 
+	addEmbeddingCacheSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName('Cache embeddings on disk')
+			.setDesc('Faster loading when using a large vault for your Mini-RAG context. Cache is stored under the plugin folder.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.embeddingCacheEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.embeddingCacheEnabled = value;
+					await this.plugin.saveSettings();
+				})
+			);
+	}
+
 	addEnableContextFreeChats(container: HTMLElement) {
 		new Setting(container)
 			.setName('Enable context-free chats')
@@ -340,6 +353,7 @@ export class SettingTab extends PluginSettingTab {
 		this.addRagTopKSetting(containerEl);
 		this.addEnableContextFreeChats(containerEl);
 		this.addEmbeddingModelSetting(containerEl);
+		this.addEmbeddingCacheSetting(containerEl);
 		void this.refreshModelList();
 	}
 }

@@ -30,6 +30,15 @@ export class VectorIndex {
 			.slice(0, topK)
 			.map(({chunk}) => chunk);
 	}
+
+	queryFromPaths(queryEmbedding: number[], topK: number, paths: Set<string>): Chunk[] {
+		return this.chunks
+			.filter(chunk => paths.has(chunk.path))
+			.map(chunk => ({chunk, score: cosineSimilarity(queryEmbedding, chunk.embedding)}))
+			.sort((a, b) => b.score - a.score)
+			.slice(0, topK)
+			.map(({chunk}) => chunk);
+	}
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {

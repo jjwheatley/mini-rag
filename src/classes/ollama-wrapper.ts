@@ -79,7 +79,20 @@ export class OllamaWrapper {
 		return (await this.getEmbeddings([text]))[0];
 	}
 
-	async getEmbeddings(texts: string[]): Promise<number[][]> {
+	async getEmbeddings(texts: string[], batchSize = 32): Promise<number[][]> {
+		const results: number[][] = [];
+		for (let i = 0; i < texts.length; i += batchSize) {
+			const batch = texts.slice(i, i + batchSize);
+			// Only release the model after the final batch. Releasing per-batch (keep_alive:0)
+			// forces Ollama to reload the model before each batch, which dominates build time.
+			const isLastBatch = i + batchSize >= texts.length;
+			const batchEmbeddings = await this.embedBatch(batch, isLastBatch);
+			results.push(...batchEmbeddings);
+		}
+		return results;
+	}
+
+	private async embedBatch(texts: string[], isLastBatch = true): Promise<number[][]> {
 		const dedicated = this.plugin.settings.dedicatedEmbeddingEnabled;
 		// Capture the last thrown error so the shouldAbort callback can inspect it
 		// and skip retries for permanent failures (e.g. 501 model-capability errors).
@@ -93,11 +106,14 @@ export class OllamaWrapper {
 						body: JSON.stringify({
 							model: this.resolvedEmbeddingModel,
 							input: texts,
-							// When a dedicated embedding model is used, force CPU and unload immediately so
-							// it doesn't compete with the chat model for VRAM. When the chat model doubles
-							// as the embedding model these options must be omitted — it's already on the
-							// GPU and keep_alive:0 would unload it mid-conversation.
-							...(dedicated && {keep_alive: 0, options: {num_gpu: 0}}),
+							// When a dedicated embedding model is used, keep it resident between batches
+							// (keep_alive '5m') and only unload it after the final batch (keep_alive 0),
+							// so a single index build pays one model load instead of one per batch.
+							// num_gpu is intentionally omitted: Ollama auto-places the model on the GPU
+							// when one is available and manages VRAM itself. When the chat model doubles
+							// as the embedding model these options must be omitted entirely — it's already
+							// on the GPU and keep_alive:0 would unload it mid-chat.
+							...(dedicated && {keep_alive: isLastBatch ? 0 : '5m'}),
 						}),
 					});
 					if (result.json.error) {

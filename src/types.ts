@@ -6,6 +6,7 @@ export interface PluginSettings {
 	ollamaURL: string;
 	temperature: number;
 	isContextFreeChatsEnabled: boolean;
+	embeddingCacheEnabled: boolean;
 	lastContextPath: string | null;
 	lastContextType: 'file' | 'folder' | null;
 }

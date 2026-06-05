@@ -18,6 +18,7 @@ Open "options" by clicking on the gear icon then navigate to `Community Plugins 
 - **Chat Model**: Dropdown list of models installed in your local Ollama setup. Use the refresh button to reload the list.
 - **Temperature**: Higher temperatures give more creative responses; lower values give more focused and consistent ones.
 - **Retrieved chunks (top-K)**: How many note excerpts are injected into each query (1–10). Higher values give the model more context but increase prompt size.
+- **Cache embeddings on disk**: When enabled, note embeddings are saved so that re-opening a note or folder is near-instant instead of re-computing every time. See [Embedding cache](#embedding-cache) for what is stored and the privacy trade-off. Off by default.
 - **Enable context-free chats**: Provides the option to chat with an LLM without the context of a note or folder.
 - **Use a dedicated embedding model**: When enabled, a separate Ollama model is used to generate embeddings instead of the chat model. Recommended if you want higher retrieval quality. If the selected embedding model is not yet installed, the settings panel shows the `ollama pull <model>` command to install it.
 
@@ -45,6 +46,18 @@ To save under a custom name, click the **chevron** (▾) next to the Save button
 When a chat has context (opened from a file or folder), a **Summarize** (sparkles) button appears. Click it to ask the model to summarize the context file.
 
 ---
+
+## Embedding cache
+
+Generating embeddings for a large folder can take a while. With **Cache embeddings on disk** enabled, Mini-RAG stores the results so that the next time you open the same note or folder, unchanged notes are loaded instantly and only new or edited notes are re-embedded.
+
+The cache is stored per folder under `.obsidian/plugins/mini-rag/cache/`, mirroring your vault's folder structure. Each note's entry is keyed by a hash of its content, the chunking version, and the embedding model — so editing a note, or switching embedding models, automatically re-embeds only what changed. Entries for deleted notes are cleaned up automatically.
+
+**What the cache contains:** the cache files store your note **text** and its **embedding vectors** in plain (unencrypted) JSON. Embedding vectors are not anonymous — much of the original text can be reconstructed from them — so treat the cache as being as sensitive as the notes themselves.
+
+**Keeping the cache private:**
+- **Git** — Mini-RAG writes a `.gitignore` into the cache folder automatically, so the cache is never committed if your vault is a git repository.
+- **Obsidian Sync / iCloud / Dropbox / etc.** — there is no per-file exclusion for the cache. If you sync the `.obsidian` configuration folder (including installed community plugins), the cache will sync with it. If your vault syncs to a location where you would not want note content copied, leave this setting **off** (the default).
 
 ## Privacy & Permissions
 
