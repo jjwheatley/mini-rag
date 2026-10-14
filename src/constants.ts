@@ -8,7 +8,7 @@ export const FOLDER_NAME = APP_NAME + " Chats";
 
 export const OLLAMA_API = {
 	tags: "/api/tags",
-	generate: "/api/generate",
+	chat: "/api/chat",
 	embed: "/api/embed",
 	ps: "/api/ps",
 } as const;
@@ -16,3 +16,6 @@ export const OLLAMA_API = {
 export const RAG_CONTEXT_TEMPLATE = "Use the following excerpts from the user's notes as context. Only use information from these excerpts if it is relevant to the question.\n\n---\n\n"
 
 export const CSS_CLASS_PREFIX = "mini-rag-"
+
+/** Where to report a problem the setup hints do not solve. */
+export const SUPPORT_URL = 'https://github.com/jjwheatley/mini-rag/issues';

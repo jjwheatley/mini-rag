@@ -83,6 +83,11 @@ export class SaveChatAsModal extends Modal {
 			await this.plugin.writeChatToFile(this.chatWindow, filepath);
 			new Notice(`Chat saved as: ${filepath}`);
 			this.close();
+		} catch (e) {
+			// submit() runs fire-and-forget, so an uncaught error here would vanish as an unhandled
+			// rejection. Report it the way the in-place save does, and leave the dialog open.
+			const detail = e instanceof Error ? e.message : String(e);
+			new Notice(`Mini-RAG: failed to save chat. ${detail}`);
 		} finally {
 			this.isSubmitting = false;
 		}

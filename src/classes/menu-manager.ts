@@ -1,5 +1,7 @@
 import {APP_NAME, ICON_NAME} from "../constants";
 import MiniRagPlugin from "../../main";
+import {activeProviderConfig} from "../settings";
+import {handleIndexBuildError} from "./index-build";
 import {Menu, Notice, TAbstractFile, TFile, TFolder} from "obsidian";
 
 export class MenuManager {
@@ -78,15 +80,7 @@ export class MenuManager {
 						try {
 							await this.plugin.context.buildIndex(this.plugin.ai);
 						} catch (e) {
-							if (this.plugin.settings.dedicatedEmbeddingEnabled) {
-								chatWindow.showIndexError(this.plugin.ai.resolvedEmbeddingModel);
-							} else if (/status 501/.test(e instanceof Error ? e.message : String(e))) {
-								// Chat model doesn't support embeddings — fall back to full context injection.
-								// hasContext() is true so sendTextAsChatMessage will use getRawContext().
-							} else {
-								const detail = e instanceof Error ? e.message : String(e);
-								new Notice(`Mini-RAG: failed to build index — ${detail}`);
-							}
+							handleIndexBuildError(e, this.plugin.indexBuildErrorDeps(chatWindow));
 						} finally {
 							if (seq === this.plugin.contextLoadSeq) {
 								chatWindow.setAwaitingResponse(false);
@@ -102,7 +96,7 @@ export class MenuManager {
 	}
 
 	isModelSelected() {
-		return this.plugin.settings.aiModel !== '';
+		return activeProviderConfig(this.plugin.settings).chatModel !== '';
 	}
 
 	registerItemsToContextMenuInNotes(){

@@ -15,8 +15,8 @@ function createIconButton(
 
 	const button = parent.createEl("button", {cls: classes.join(" ")});
 	setIcon(button, icon);
+	// Obsidian draws its tooltip from aria-label; a title would add the browser's as well.
 	button.setAttr("aria-label", label);
-	button.setAttr("title", label);
 	return button;
 }
 
@@ -25,6 +25,8 @@ export class ChatButtons {
 	private saveButton: HTMLButtonElement;
 	private saveMenuButton: HTMLButtonElement;
 	private summarizeButton: HTMLButtonElement;
+	/** While a staged summary runs, the Summarize button stops it instead. */
+	private onStop: (() => void) | null = null;
 	private sendButton: HTMLButtonElement;
 
 	constructor(chatWindow: ChatWindow) {
@@ -90,6 +92,10 @@ export class ChatButtons {
 			CSS_CLASS_PREFIX + "summarize-button",
 		);
 		this.chatWindow.registerDomEvent(summarizeButton, "click", async () => {
+			if (this.onStop) {
+				this.onStop();
+				return;
+			}
 			await this.chatWindow.summarizeContext();
 		});
 		return summarizeButton;
@@ -119,6 +125,18 @@ export class ChatButtons {
 
 	setSummarizeEnabled(enabled: boolean) {
 		this.summarizeButton.disabled = !enabled;
+	}
+
+	/**
+	 * Turns Summarize into Stop, calling `onStop` when clicked, or back again with null. Stop is
+	 * enabled even while everything else waits on the summary, since stopping it is the point.
+	 */
+	setSummarizeStopping(onStop: (() => void) | null) {
+		this.onStop = onStop;
+		const label = onStop ? "Stop" : "Summarize";
+		setIcon(this.summarizeButton, onStop ? "square" : "sparkles");
+		this.summarizeButton.setAttr("aria-label", label);
+		if (onStop) this.summarizeButton.disabled = false;
 	}
 
 	hideSummarizeButton() {

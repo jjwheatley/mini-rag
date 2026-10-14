@@ -187,20 +187,126 @@
 	color: var(--text-warning, var(--color-orange));
 }
 
-.mini-rag-settings-status code {
-	line-height: inherit;
+/*
+ * Why an embedding model is missing and what to run: a full-width line across the bottom of the
+ * setting row, which wraps to make room for it.
+ */
+.mini-rag-setting-with-hint {
+	flex-wrap: wrap;
 }
 
-.mini-rag-settings-status .mini-rag-inline-copy-btn {
-	align-self: center;
+/*
+ * Wrapping lets a long description push the controls onto a line of their own. A zero basis keeps
+ * the name and description beside the controls, so only the hint takes a line of its own; the
+ * controls keep their natural width rather than being squeezed.
+ */
+.mini-rag-setting-with-hint > .setting-item-info {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
-.mini-rag-settings-status.is-warning code {
-	color: var(--text-normal);
+.mini-rag-setting-with-hint > .setting-item-control {
+	flex: 0 0 auto;
 }
 
-.mini-rag-settings-status.is-warning > div > div:last-child {
+.mini-rag-settings-hint {
+	display: flex;
+	flex-direction: column;
+	flex-basis: 100%;
+	gap: var(--size-2-2);
+	margin-top: var(--size-4-2);
 	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.mini-rag-settings-hint-command {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-1);
+	max-width: 100%;
+	padding: var(--size-2-1) var(--size-2-1) var(--size-2-1) var(--size-4-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+}
+
+/* Wrapped rather than scrolled: a narrow description column clipped it behind a scrollbar. */
+.mini-rag-settings-hint-command code {
+	flex: 1;
+	min-width: 0;
+	align-self: center;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	padding: 0;
+	background: none;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+}
+
+/* A flag and its value, which the command never wraps between. */
+.mini-rag-settings-hint-command code span {
+	white-space: nowrap;
+}
+
+.mini-rag-settings-hint-command .mini-rag-inline-copy-btn {
+	flex-shrink: 0;
+	margin-left: 0;
+}
+
+/*
+ * While the embedding models are being listed: pulsing text over a sliding bar. Our own class,
+ * since Obsidian draws its own progress bar on any "is-loading" element, right over the text.
+ */
+.mini-rag-settings-status.mini-rag-checking {
+	position: relative;
+	width: fit-content;
+	min-width: 12em;
+	padding-bottom: var(--size-4-1);
+	color: var(--text-muted);
+	animation: mini-rag-pulse 1.2s ease-in-out infinite;
+}
+
+.mini-rag-settings-status.mini-rag-checking::after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	width: 30%;
+	height: 2px;
+	border-radius: 1px;
+	background-color: var(--interactive-accent);
+	animation: mini-rag-slide 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes mini-rag-slide {
+	from { left: 0; }
+	to { left: 70%; }
+}
+
+@keyframes mini-rag-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mini-rag-settings-status.mini-rag-checking,
+	.mini-rag-settings-status.mini-rag-checking::after {
+		animation: none;
+	}
+}
+
+/* Beside the "2. Connect to …" step heading. */
+.mini-rag-connection-status {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-normal);
+}
+
+.mini-rag-connection-status.is-connected {
+	color: var(--text-success, var(--color-green));
+}
+
+.mini-rag-connection-status.is-disconnected {
+	color: var(--text-warning, var(--color-orange));
 }
 
 .mini-rag-settings-status.is-success {
@@ -248,10 +354,6 @@
 	color: var(--interactive-accent);
 }
 
-.mini-rag-index-error-title {
-	margin: 0;
-}
-
 .mini-rag-index-error-desc {
 	margin: 0;
 	color: var(--text-muted);
@@ -263,10 +365,19 @@
 	padding-left: 1.4em;
 }
 
-.mini-rag-index-error-step {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+.mini-rag-index-error-steps li + li {
+	margin-top: var(--size-4-2);
+}
+
+/* The command sits inside its step, under the instruction to run it. */
+.mini-rag-index-error-steps .mini-rag-copy-command {
+	margin-top: var(--size-4-2);
+}
+
+.mini-rag-index-error-support {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
 }
 
 .mini-rag-copy-command {
@@ -304,6 +415,17 @@
 
 .mini-rag-model-row h3 {
 	margin: 0;
+}
+
+/* A quiet line about a request, e.g. which notes did not fit the model's context. */
+.mini-rag-context-note {
+	align-self: center;
+	max-width: 90%;
+	margin: var(--size-4-1) 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	text-align: center;
 }
 
 .mini-rag-model-switch-divider {

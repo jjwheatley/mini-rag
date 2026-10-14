@@ -1,18 +1,21 @@
 import {normalizePath, Notice, Plugin, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
-import {DEFAULT_SETTINGS} from "./src/defaults";
+import {activeProviderConfig} from "./src/settings";
+import {migrateSettings} from "./src/settings-migration";
 import {PluginSettings} from "./src/types";
 import {FOLDER_NAME, VIEW_TYPE} from "./src/constants";
-import {OllamaWrapper} from "./src/classes/ollama-wrapper";
+import {AiProvider} from "./src/providers/types";
+import {createProvider} from "./src/providers/factory";
+import {handleIndexBuildError} from "./src/classes/index-build";
 import {FileManager} from "./src/classes/file-manager";
-import {buildChatSaveFilename, firstToUpper, formatChatAsMarkdown} from "./src/utils";
+import {buildChatSaveFilename, formatChatAsMarkdown} from "./src/utils";
 import {Contextualizer} from "./src/classes/contextualizer";
 import {MenuManager} from "./src/classes/menu-manager";
 import {SaveChatAsModal} from "./src/classes/ui/save-chat-as-modal";
 
 export default class MiniRagPlugin extends Plugin {
-	ai: OllamaWrapper;
+	ai: AiProvider;
 	menu: MenuManager;
 	context: Contextualizer;
 	settings: PluginSettings;
@@ -77,15 +80,7 @@ export default class MiniRagPlugin extends Plugin {
 			if (seq !== this.contextLoadSeq) return;
 		} catch (e) {
 			if (seq === this.contextLoadSeq) {
-				if (this.settings.dedicatedEmbeddingEnabled) {
-					chatWindow.showIndexError(this.ai.resolvedEmbeddingModel);
-				} else if (/status 501/.test(e instanceof Error ? e.message : String(e))) {
-					// Chat model doesn't support embeddings — fall back to full context injection.
-					// hasContext() is true so sendTextAsChatMessage will use getRawContext().
-				} else {
-					const detail = e instanceof Error ? e.message : String(e);
-					new Notice(`Mini-RAG: failed to build index — ${detail}`);
-				}
+				handleIndexBuildError(e, this.indexBuildErrorDeps(chatWindow));
 			}
 		} finally {
 			if (seq === this.contextLoadSeq) {
@@ -96,6 +91,7 @@ export default class MiniRagPlugin extends Plugin {
 
 	onunload() {
 		this.ai?.abort();
+		void this.ai?.dispose?.();
 	}
 
 	async getChatWindow(): Promise<ChatWindow> {
@@ -131,17 +127,49 @@ export default class MiniRagPlugin extends Plugin {
 		return leaf;
 	}
 
+	/**
+	 * The chat model or provider changed in the settings. The new model never saw the conversation
+	 * so far, and an open chat panel would otherwise go on naming the old one.
+	 */
+	notifyChatModelChanged() {
+		this.ai.clearContext();
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+			if (leaf.view instanceof ChatWindow) leaf.view.modelChanged();
+		}
+	}
+
+	/**
+	 * The chat model in use: what the server runs, where that decides it (llama.cpp), otherwise
+	 * the one chosen.
+	 */
+	activeChatModel(): string {
+		return this.ai.runningChatModel ?? activeProviderConfig(this.settings).chatModel;
+	}
+
 	getModelUserFriendlyName(){
-		if (!this.settings.aiModel) {
+		const chatModel = this.activeChatModel();
+		if (!chatModel) {
 			return 'your model';
 		}
-		const colonIdx = this.settings.aiModel.indexOf(':');
-		const nameBeforeColon = colonIdx === -1 ? this.settings.aiModel : this.settings.aiModel.slice(0, colonIdx);
-		return firstToUpper(nameBeforeColon);
+		// Each backend's ids look different — Ollama tags, llama.cpp file paths and Hugging Face
+		// ids — and the name reaches headers and saved-chat filenames, so the active provider tidies
+		// its own.
+		return this.ai.displayModelName(chatModel);
+	}
+
+	/** Shared by every index-build call site, so the three outcomes stay in one place. */
+	indexBuildErrorDeps(chatWindow: ChatWindow) {
+		return {
+			dedicated: activeProviderConfig(this.settings).dedicatedEmbeddingEnabled,
+			embeddingModel: this.ai.resolvedEmbeddingModel,
+			showIndexError: (model: string) => chatWindow.showIndexError(model),
+			notify: (message: string) => { new Notice(message); },
+			formatError: (error: unknown) => this.ai.formatError(error),
+		};
 	}
 
 	loadAI(){
-		this.ai = new OllamaWrapper(this);
+		this.ai = createProvider(this);
 	}
 
 	loadContextualizer(){
@@ -157,7 +185,13 @@ export default class MiniRagPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		// A shallow Object.assign would leave the live settings sharing the nested providers
+		// object with DEFAULT_SETTINGS, so edits would write through to the defaults.
+		const {settings, migrated} = migrateSettings(await this.loadData());
+		this.settings = settings;
+		if (migrated) {
+			await this.saveData(this.settings);
+		}
 	}
 
 	async ensureChatFolder(): Promise<void> {
@@ -168,7 +202,7 @@ export default class MiniRagPlugin extends Plugin {
 
 	async writeChatToFile(chatWindow: ChatWindow, filepath: string): Promise<void> {
 		const content = formatChatAsMarkdown(chatWindow.chatMessages.get(), {
-			model: this.settings.aiModel,
+			model: this.activeChatModel(),
 			modelDisplay: this.getModelUserFriendlyName(),
 			started: chatWindow.chatStarted,
 			updated: new Date(),

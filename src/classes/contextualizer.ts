@@ -2,19 +2,20 @@ import MiniRagPlugin from "../../main";
 import {normalizePath, TAbstractFile, TFile, TFolder} from "obsidian";
 import {VectorIndex} from "./vector-index";
 import {Chunk} from "./vector-index";
-import {OllamaWrapper} from "./ollama-wrapper";
+import {EmbeddingSource} from "../providers/types";
+import {EmbeddingDimensionMismatchError, NoModelChosenError} from "../providers/errors";
 import {RAG_CONTEXT_TEMPLATE} from "../constants";
+import {chunkText, CHUNKING_VERSION, embeddingCacheKey} from "../chunker";
+import {ContextNote, fitNotes} from "../context-budget";
 
-// Cache format version — bump if the FolderCache shape changes.
-const CACHE_VERSION = 2;
-// Chunking strategy version — bump whenever chunkText/splitAtBoundary or the
-// size constants below change, so stale chunks are invalidated automatically.
-const CHUNKING_VERSION = 1;
+// Cache format version — bump if the FolderCache shape or the key format changes. 3 added the
+// provider and embedding endpoint to the key; older caches are discarded wholesale on load.
+const CACHE_VERSION = 3;
 const CACHE_DIR = normalizePath('.obsidian/plugins/mini-rag/cache');
 const CACHE_FILE = '.mini-rag-cache.json';
 
 interface FileCacheEntry {
-	// hash(content + CHUNKING_VERSION + embeddingModel) — a mismatch means recompute.
+	// embeddingCacheKey(content, CHUNKING_VERSION, provider, model, endpoint) — a mismatch means recompute.
 	key: string;
 	chunks: Chunk[];
 }
@@ -22,25 +23,6 @@ interface FileCacheEntry {
 interface FolderCache {
 	version: number;
 	files: Record<string, FileCacheEntry>;
-}
-
-const MAX_CHUNK_SIZE = 1200;
-const MIN_CHUNK_SIZE = 10;
-
-// cyrb53: fast, non-cryptographic 53-bit string hash. Used only for cache keying,
-// where collisions just cause a (rare, harmless) unnecessary re-embed.
-function cyrb53(str: string, seed = 0): string {
-	let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-	for (let i = 0; i < str.length; i++) {
-		const ch = str.charCodeAt(i);
-		h1 = Math.imul(h1 ^ ch, 2654435761);
-		h2 = Math.imul(h2 ^ ch, 1597334677);
-	}
-	h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-	h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-	h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-	h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-	return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 }
 
 function splitPath(path: string): {folder: string; filename: string} {
@@ -94,9 +76,14 @@ export class Contextualizer {
 		return res;
 	}
 
-	async buildIndex(ai: OllamaWrapper): Promise<void> {
+	async buildIndex(ai: EmbeddingSource): Promise<void> {
 		this.index.clear();
+		// Where the server decides the model (llama.cpp), learn which it runs first: that, not the
+		// one chosen, is what the vectors come from and what the cache must be keyed on.
+		await ai.identifyRunningModels?.();
 		const model = ai.resolvedEmbeddingModel;
+		// Every request would fail, and its failure would name no model: say what is missing.
+		if (!model && this.contextPaths.size > 0) throw new NoModelChosenError();
 		const cachingEnabled = this.plugin.settings.embeddingCacheEnabled;
 
 		// Group context files by their parent folder — the cache is sharded per folder.
@@ -121,12 +108,18 @@ export class Contextualizer {
 			folderCaches.set(folder, state);
 
 			for (const f of files) {
-				const key = cyrb53(`${f.content}|${CHUNKING_VERSION}|${model}`);
+				const key = embeddingCacheKey({
+					content: f.content,
+					chunkingVersion: CHUNKING_VERSION,
+					providerId: ai.id,
+					model,
+					endpoint: ai.embeddingEndpoint,
+				});
 				const entry = cache.files[f.filename];
 				if (entry && entry.key === key) {
 					reusedChunks.push(...entry.chunks);
 				} else {
-					misses.push({path: f.path, folder, filename: f.filename, key, chunkTexts: this.chunkText(f.path, f.content)});
+					misses.push({path: f.path, folder, filename: f.filename, key, chunkTexts: chunkText(f.path, f.content)});
 				}
 			}
 		}
@@ -148,6 +141,18 @@ export class Contextualizer {
 			);
 		}
 
+		// VectorIndex scores a size mismatch as 0 rather than failing, so mixed sizes would quietly
+		// retrieve nothing. It happens when the embedding model changes without the cache key
+		// noticing — llama-server restarted on another model under the same name and port. Refuse
+		// the build, and empty the caches so the rebuild re-embeds everything consistently.
+		const vectors = [...reusedChunks.map(chunk => chunk.embedding), ...embeddings];
+		const expected = vectors[0]?.length;
+		const mismatch = vectors.find(vector => vector.length !== expected);
+		if (mismatch) {
+			await this.discardCaches(folderCaches, cachingEnabled);
+			throw new EmbeddingDimensionMismatchError(expected as number, mismatch.length);
+		}
+
 		let i = 0;
 		for (const m of misses) {
 			const chunks: Chunk[] = m.chunkTexts.map(text => ({path: m.path, text, embedding: embeddings[i++]}));
@@ -166,6 +171,18 @@ export class Contextualizer {
 			for (const [folder, state] of folderCaches) {
 				if (state.dirty) await this.saveFolderCache(folder, state.cache);
 			}
+		}
+	}
+
+	/** Empties every folder cache this build touched, so the next build re-embeds from scratch. */
+	private async discardCaches(
+		folderCaches: Map<string, {cache: FolderCache}>,
+		cachingEnabled: boolean,
+	): Promise<void> {
+		if (!cachingEnabled) return;
+		for (const [folder, state] of folderCaches) {
+			state.cache.files = {};
+			await this.saveFolderCache(folder, state.cache);
 		}
 	}
 
@@ -243,107 +260,59 @@ export class Contextualizer {
 		return this.contextPaths.size > 0;
 	}
 
+	/** Every note in the context, by file name, in the order added. */
+	getContextNotes(): ContextNote[] {
+		return [...this.contextPaths].map(([path, text]) => ({name: path.split('/').pop() ?? path, text}));
+	}
+
 	getRawContext(): string {
-		const parts: string[] = [];
-		for (const [path, text] of this.contextPaths) {
-			const filename = path.split('/').pop() ?? path;
-			parts.push(`[${filename}]\n${text}`);
-		}
-		return parts.join('\n\n---\n\n');
+		return fitNotes(this.getContextNotes(), null).text;
 	}
 
-	getRelevantContext(queryEmbedding: number[], topK: number): string {
-		const chunks = this.index.query(queryEmbedding, topK);
-
-		// **Graph-augmented retrieval** \\
-		// After vector search, expand context by including chunks from notes that are
-		// linked to or from the top results. Improves multi-hop and associative queries.
-		if (chunks.length > 0) {
-			const retrievedPaths = new Set(chunks.map(c => c.path));
-			const linkedPaths = new Set<string>();
-			const app = this.plugin.app;
-
-			for (const path of retrievedPaths) {
-				const file = app.vault.getFileByPath(path);
-				if (!file) continue;
-
-				// Outgoing [[wikilinks]]
-				const links = app.metadataCache.getFileCache(file)?.links ?? [];
-				for (const link of links) {
-					const resolved = app.metadataCache.getFirstLinkpathDest(link.link, path);
-					if (resolved) linkedPaths.add(resolved.path);
-				}
-
-				// Backlinks — scan resolvedLinks for any file pointing at this path
-				for (const [sourcePath, targets] of Object.entries(app.metadataCache.resolvedLinks)) {
-					if (targets[path]) linkedPaths.add(sourcePath);
-				}
-			}
-
-			// Exclude paths already covered by the vector results
-			for (const p of retrievedPaths) linkedPaths.delete(p);
-
-			if (linkedPaths.size > 0) {
-				const expansion = this.index.queryFromPaths(queryEmbedding, topK, linkedPaths);
-				const allChunks = [...chunks, ...expansion];
-				return RAG_CONTEXT_TEMPLATE + allChunks.map(c => c.text).join('\n\n---\n\n');
-			}
-		}
-
-		if (chunks.length === 0)
-			return '';
-
-		return RAG_CONTEXT_TEMPLATE + chunks.map(c => c.text).join('\n\n---\n\n');
-	}
-
-	getAllContext(): string {
-		const chunks = this.index.allChunks();
+	/**
+	 * The excerpts most relevant to the query, with the template that introduces them. Within
+	 * `maxChars`, the lowest-ranked go first — linked-note excerpts before search results, since the
+	 * results are what the question matched — but the best is always kept.
+	 */
+	getRelevantContext(queryEmbedding: number[], topK: number, maxChars = Infinity): string {
+		const results = this.index.query(queryEmbedding, topK);
+		const chunks = [...results, ...this.linkedChunks(queryEmbedding, topK, results)];
 		if (chunks.length === 0) return '';
-		return chunks.map(c => c.text).join('\n\n---\n\n');
+
+		const render = (kept: Chunk[]) => RAG_CONTEXT_TEMPLATE + kept.map(c => c.text).join('\n\n---\n\n');
+		while (chunks.length > 1 && render(chunks).length > maxChars) chunks.pop();
+		return render(chunks);
 	}
 
-	private chunkText(path: string, text: string): string[] {
-		const filename = path.split('/').pop() ?? path;
-		// Split on markdown headings, keeping the heading with its section.
-		// Prepending \n ensures a heading at position 0 is captured by the lookahead.
-		const sections = ('\n' + text).split(/(?=\n#{1,6} )/).map(s => s.replace(/^\n/, ''));
-		const chunks: string[] = [];
+	/**
+	 * **Graph-augmented retrieval**: chunks from notes linked to or from the top results, best
+	 * first. Improves multi-hop and associative queries.
+	 */
+	private linkedChunks(queryEmbedding: number[], topK: number, results: Chunk[]): Chunk[] {
+		const retrievedPaths = new Set(results.map(c => c.path));
+		const linkedPaths = new Set<string>();
+		const app = this.plugin.app;
 
-		for (const section of sections) {
-			const trimmed = section.trim();
-			if (trimmed.length < MIN_CHUNK_SIZE) continue;
+		for (const path of retrievedPaths) {
+			const file = app.vault.getFileByPath(path);
+			if (!file) continue;
 
-			if (trimmed.length <= MAX_CHUNK_SIZE) {
-				chunks.push(`[${filename}]\n${trimmed}`);
-			} else {
-				// Split oversized sections by double newlines, then cap each sub-chunk
-				for (const sub of trimmed.split(/\n\n+/)) {
-					const s = sub.trim();
-					if (s.length < MIN_CHUNK_SIZE) continue;
-					for (const piece of this.splitAtBoundary(s)) {
-						chunks.push(`[${filename}]\n${piece}`);
-					}
-				}
+			// Outgoing [[wikilinks]]
+			const links = app.metadataCache.getFileCache(file)?.links ?? [];
+			for (const link of links) {
+				const resolved = app.metadataCache.getFirstLinkpathDest(link.link, path);
+				if (resolved) linkedPaths.add(resolved.path);
+			}
+
+			// Backlinks — scan resolvedLinks for any file pointing at this path
+			for (const [sourcePath, targets] of Object.entries(app.metadataCache.resolvedLinks)) {
+				if (targets[path]) linkedPaths.add(sourcePath);
 			}
 		}
 
-		return chunks;
+		// Exclude paths already covered by the vector results
+		for (const p of retrievedPaths) linkedPaths.delete(p);
+		return linkedPaths.size > 0 ? this.index.queryFromPaths(queryEmbedding, topK, linkedPaths) : [];
 	}
 
-	private splitAtBoundary(text: string): string[] {
-		if (text.length <= MAX_CHUNK_SIZE) return [text];
-		const pieces: string[] = [];
-		let start = 0;
-		while (start < text.length) {
-			let end = start + MAX_CHUNK_SIZE;
-			if (end < text.length) {
-				const spaceIdx = text.lastIndexOf(' ', end);
-				if (spaceIdx > start) end = spaceIdx;
-			}
-			const piece = text.slice(start, end).trim();
-			if (piece.length >= MIN_CHUNK_SIZE) pieces.push(piece);
-			start = end + 1;
-		}
-		return pieces;
-	}
 }

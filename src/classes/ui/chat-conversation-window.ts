@@ -1,7 +1,9 @@
 import {Component, MarkdownRenderer, Menu, Notice, setIcon} from "obsidian";
 import {clipboard} from "electron";
 import MiniRagPlugin from "../../../main";
+import {activeProviderConfig} from "../../settings";
 import {APP_NAME, CSS_CLASS_PREFIX, ICON_NAME} from "../../constants";
+import {AiProvider} from "../../providers/types";
 
 export class ChatConversationWindow {
 	headerEl: HTMLDivElement;
@@ -12,6 +14,10 @@ export class ChatConversationWindow {
 	// Owns per-message click listeners; replaced on clear() so stale listeners don't accumulate.
 	private convoComponent: Component;
 	private cachedModels: string[] = [];
+	/** The provider the cached list came from: a failed refresh never falls back on another's. */
+	private cachedFor: AiProvider | null = null;
+	/** Whether the last attempt to list models failed, leaving nothing to offer. */
+	private modelListFailed = false;
 	private modelNameEl: HTMLElement | null = null;
 	private modelChevronBtn: HTMLButtonElement | null = null;
 
@@ -43,7 +49,6 @@ export class ChatConversationWindow {
 		this.modelChevronBtn = chevron;
 		setIcon(chevron, 'chevron-down');
 		chevron.setAttr('aria-label', 'Change model');
-		chevron.setAttr('title', 'Change model');
 		chevron.addEventListener('click', () => void this.showModelMenu(chevron));
 
 		this.headerEl.createEl("div", {text: chatSubject ? 'Context: ' + chatSubject : 'Context-Free'});
@@ -52,10 +57,22 @@ export class ChatConversationWindow {
 	}
 
 	private async fetchModels() {
+		const ai = this.plugin.ai;
 		try {
-			this.cachedModels = await this.plugin.ai.getModelList();
+			this.cachedModels = await ai.getModelList();
+			this.cachedFor = ai;
+			this.modelListFailed = false;
+			// Where the server decides the model, it has now said which: name that one.
+			if (this.modelNameEl) {
+				this.modelNameEl.textContent = 'Chat with ' + this.plugin.getModelUserFriendlyName();
+			}
 		} catch {
-			// Ollama unreachable — keep cached list
+			// Unreachable: keep this provider's last list, but never one from the provider before.
+			if (this.cachedFor !== ai) {
+				this.cachedModels = [];
+				this.cachedFor = ai;
+			}
+			this.modelListFailed = this.cachedModels.length === 0;
 		}
 	}
 
@@ -64,20 +81,18 @@ export class ChatConversationWindow {
 
 		const menu = new Menu();
 		if (this.cachedModels.length === 0) {
-			menu.addItem(item => item.setTitle('No models found').setDisabled(true));
+			const title = this.modelListFailed ? 'Could not load models' : 'No models found';
+			menu.addItem(item => item.setTitle(title).setDisabled(true));
 		} else {
 			for (const model of this.cachedModels) {
 				menu.addItem(item => {
 					item.setTitle(model);
-					if (model === this.plugin.settings.aiModel) item.setIcon('check');
+					if (model === activeProviderConfig(this.plugin.settings).chatModel) item.setIcon('check');
 					item.onClick(() => {
-						this.plugin.settings.aiModel = model;
+						activeProviderConfig(this.plugin.settings).chatModel = model;
 						void this.plugin.saveSettings();
 						this.plugin.ai.clearContext();
-						if (this.modelNameEl) {
-							this.modelNameEl.textContent = 'Chat with ' + this.plugin.getModelUserFriendlyName();
-						}
-						this.addModelSwitchDivider();
+						this.showModelSwitch();
 					});
 				});
 			}
@@ -85,6 +100,25 @@ export class ChatConversationWindow {
 
 		const rect = anchor.getBoundingClientRect();
 		menu.showAtPosition({x: rect.left, y: rect.bottom + 4});
+	}
+
+	/**
+	 * The model or provider was changed in the settings rather than from this pane's menu: show the
+	 * new model, mark the switch, and list the models afresh, since they may be another provider's.
+	 */
+	modelChanged() {
+		this.showModelSwitch();
+		this.cachedModels = [];
+		this.cachedFor = null;
+		void this.fetchModels();
+	}
+
+	/** Names the model now in use in the heading, and marks the switch in the transcript. */
+	private showModelSwitch() {
+		if (this.modelNameEl) {
+			this.modelNameEl.textContent = 'Chat with ' + this.plugin.getModelUserFriendlyName();
+		}
+		this.addModelSwitchDivider();
 	}
 
 	addModelSwitchDivider() {
@@ -95,6 +129,24 @@ export class ChatConversationWindow {
 			cls: CSS_CLASS_PREFIX + 'model-switch-label',
 		});
 		el.createEl('span', {cls: CSS_CLASS_PREFIX + 'model-switch-line'});
+	}
+
+	/**
+	 * A quiet line about the request itself — say, that some notes did not fit. Not a message: it
+	 * is not copied on click or saved with the chat. It goes above an answer still being written,
+	 * since that is the answer it describes.
+	 */
+	addContextNote(text: string): HTMLElement {
+		const note = this.htmlElement.createEl('div', {text, cls: CSS_CLASS_PREFIX + 'context-note'});
+		const streaming = this.htmlElement.querySelector(`.${CSS_CLASS_PREFIX}convo-box-streaming`);
+		streaming?.before(note);
+		return note;
+	}
+
+	/** A context note that is rewritten as work progresses: "Summarizing part 3 of 16…". */
+	beginProgressNote(text: string): {update(text: string): void} {
+		const note = this.addContextNote(text);
+		return {update: (next: string) => note.setText(next)};
 	}
 
 	setModelSelectorEnabled(enabled: boolean) {
