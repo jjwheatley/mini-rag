@@ -82,6 +82,7 @@ function setup(options: SetupOptions = {}) {
 		app: {},
 		saveChat: vi.fn(async () => {}),
 		saveSettings: vi.fn(async () => {}),
+		fundingLinks: () => [],
 		getModelUserFriendlyName: () => 'Llama3',
 		// As main.ts builds them.
 		indexBuildErrorDeps: (chatWindow: ChatWindow) => ({

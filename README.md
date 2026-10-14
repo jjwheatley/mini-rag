@@ -128,7 +128,13 @@ Mini-RAG communicates only with the local server you configure (by default `http
 ### Clipboard Access
 Mini-RAG writes to the clipboard when you click a **Copy** button (e.g. to copy a chat message, or to copy a setup command such as `ollama pull` from the settings panel). It never reads clipboard content.
 
+### Support links
+Mini-RAG shows a link to support its development (GitHub Sponsors) in three places, all within its own interface: a row at the top of its settings, a heart button in the chat panel's header, and the **Support development** command. The link opens in your browser only when you click it; Mini-RAG never shows it anywhere else, or unprompted.
+
 ---
+
+## Supporting Mini-RAG
+Mini-RAG is free and open source. If it helps you, you can support its development on [GitHub Sponsors](https://github.com/sponsors/jjwheatley).
 
 ## Author
 For more about the author visit [JJWheatley.com](https://www.jjwheatley.com/)

@@ -5,6 +5,7 @@ import {
 	__resetNotices,
 	__resetSettings,
 	__setting,
+	ButtonComponent,
 	DropdownComponent,
 	ExtraButtonComponent,
 	notices,
@@ -16,6 +17,7 @@ import {
 import {SettingTab} from '../../src/classes/settings-tab';
 import {DEFAULT_PROVIDER_CONFIGS, defaultSettings} from '../../src/defaults';
 import {CSS_CLASS_PREFIX} from '../../src/constants';
+import {SUPPORT_TEXT} from '../../src/support';
 import {PluginSettings, ProviderId} from '../../src/types';
 import {createProvider} from '../../src/providers/factory';
 import {AiProvider} from '../../src/providers/types';
@@ -38,7 +40,15 @@ interface SetupOptions {
 	dedicated?: boolean;
 	url?: string;
 	embeddingUrl?: string;
+	/** The manifest's funding links; two by default, so the tests can show more than one. */
+	fundingLinks?: {name: string; url: string}[];
 }
+
+// Mini-RAG's own link, then a made-up second one.
+const FUNDING_LINKS = [
+	{name: 'GitHub Sponsors', url: 'https://github.com/sponsors/jjwheatley'},
+	{name: 'Tip jar', url: 'https://example.com/tip-jar'},
+];
 
 /**
  * A real provider for the active backend, so capabilities, curated lists, model-name matching and
@@ -76,6 +86,7 @@ function setup(options: SetupOptions = {}) {
 		ai: makeAi(settings, options),
 		saveSettings: vi.fn(async () => {}),
 		notifyChatModelChanged: vi.fn(),
+		fundingLinks: vi.fn(() => options.fundingLinks ?? FUNDING_LINKS),
 		// Mirrors main.ts: a fresh provider for whatever settings.provider now says.
 		loadAI: vi.fn(() => {
 			plugin.ai = makeAi(settings, options);
@@ -122,6 +133,7 @@ describe('display', () => {
 		await render();
 
 		expect(settingRows.map(row => row.name)).toEqual([
+			'Support Mini-RAG',
 			'1. Choose a provider',
 			'Provider',
 			'2. Connect to Ollama',
@@ -235,6 +247,58 @@ describe('display', () => {
 		const {getModelList} = await render();
 
 		expect(getModelList).toHaveBeenCalled();
+	});
+});
+
+// Above the steps, so everyone opening the settings sees it; one row, so setup is not pushed down.
+describe('support', () => {
+	const row = () => __setting('Support Mini-RAG');
+	const buttons = () => row()?.components.filter(c => c instanceof ButtonComponent) as ButtonComponent[];
+
+	it('leads with a way to support Mini-RAG, above the steps', async () => {
+		await render();
+
+		expect(settingRows[0]).toBe(row());
+		expect(row()?.isHeading).toBe(false);
+		expect(row()?.desc).toBe(SUPPORT_TEXT);
+		expect(row()?.settingEl.classList.contains(`${CSS_CLASS_PREFIX}support`)).toBe(true);
+	});
+
+	// The same heart as the chat panel's support button, after the title so the title lines up
+	// with the text below it.
+	it('ends the banner\'s title with a heart', async () => {
+		await render();
+		const name = row()?.nameEl as HTMLElement;
+		const heart = name.lastElementChild as HTMLElement;
+
+		expect(name.firstChild?.textContent).toBe('Support Mini-RAG');
+		expect(heart.classList.contains(`${CSS_CLASS_PREFIX}support-heart`)).toBe(true);
+		expect(heart.getAttribute('data-icon')).toBe('heart');
+		expect(name.textContent).toBe('Support Mini-RAG');
+	});
+
+	it('offers a button for each funding link, the first as the main one', async () => {
+		await render();
+
+		expect(buttons().map(b => b.text)).toEqual(['GitHub Sponsors', 'Tip jar']);
+		expect(buttons().map(b => b.cta)).toEqual([true, false]);
+	});
+
+	it('opens the chosen link in the browser', async () => {
+		const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+		await render();
+
+		await buttons()[1].click();
+
+		expect(open).toHaveBeenCalledWith('https://example.com/tip-jar');
+		open.mockRestore();
+	});
+
+	it('is left out when the manifest has no funding links', async () => {
+		await render({fundingLinks: []});
+
+		expect(row()).toBeUndefined();
+		expect(settingRows[0].name).toBe('1. Choose a provider');
 	});
 });
 

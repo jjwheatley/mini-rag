@@ -6,6 +6,7 @@ import {ProviderUnreachableError} from "../providers/errors";
 import {CSS_CLASS_PREFIX} from "../constants";
 import {listProviders} from "../providers/factory";
 import {ProviderId} from "../types";
+import {addSupportSetting} from "../support";
 
 /** Splits a command into its words, each flag joined to the value that follows it. */
 function commandGroups(command: string): string[] {
@@ -748,6 +749,9 @@ export class SettingTab extends PluginSettingTab {
 
 		// Set up in steps: the provider, then its server and models, then the shared tuning. Step 2
 		// is named after the provider, so a switch visibly changes that step and no other.
+		// Above the steps, so everyone opening the settings sees it; one row, so setup is not pushed down.
+		addSupportSetting(containerEl, this.plugin.fundingLinks());
+
 		this.addHeading(containerEl, '1. Choose a provider');
 		this.addProviderSelector(containerEl);
 

@@ -1,4 +1,4 @@
-import {normalizePath, Notice, Plugin, Workspace, WorkspaceLeaf} from 'obsidian';
+import {normalizePath, Notice, Plugin, PluginManifest, Workspace, WorkspaceLeaf} from 'obsidian';
 import {SettingTab} from "./src/classes/settings-tab";
 import {ChatWindow} from "./src/classes/chat-window";
 import {activeProviderConfig} from "./src/settings";
@@ -13,6 +13,8 @@ import {buildChatSaveFilename, formatChatAsMarkdown} from "./src/utils";
 import {Contextualizer} from "./src/classes/contextualizer";
 import {MenuManager} from "./src/classes/menu-manager";
 import {SaveChatAsModal} from "./src/classes/ui/save-chat-as-modal";
+import {SupportModal} from "./src/classes/ui/support-modal";
+import {FundingLink, fundingLinks} from "./src/support";
 
 export default class MiniRagPlugin extends Plugin {
 	ai: AiProvider;
@@ -35,6 +37,14 @@ export default class MiniRagPlugin extends Plugin {
 			name: 'Open chat panel',
 			callback: () => { void this.activateViewInWorkspace(this.app.workspace); },
 		});
+		// Only where the manifest names somewhere to send people.
+		if (this.fundingLinks().length > 0) {
+			this.addCommand({
+				id: 'support',
+				name: 'Support development',
+				callback: () => new SupportModal(this.app, this.fundingLinks()).open(),
+			});
+		}
 		this.app.workspace.onLayoutReady(() => { void this.replayContextInit(); });
 	}
 
@@ -155,6 +165,14 @@ export default class MiniRagPlugin extends Plugin {
 		// ids — and the name reaches headers and saved-chat filenames, so the active provider tidies
 		// its own.
 		return this.ai.displayModelName(chatModel);
+	}
+
+	/**
+	 * Where people can support Mini-RAG: the manifest's fundingUrl, the one place the links are
+	 * written down. Obsidian's manifest type leaves the field out.
+	 */
+	fundingLinks(): FundingLink[] {
+		return fundingLinks((this.manifest as PluginManifest & {fundingUrl?: unknown}).fundingUrl);
 	}
 
 	/** Shared by every index-build call site, so the three outcomes stay in one place. */

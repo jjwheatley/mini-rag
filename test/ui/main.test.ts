@@ -2,6 +2,7 @@
 import '../setup/obsidian-dom';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {__resetNotices, notices, TFile as StubTFile, TFolder as StubTFolder} from '../stubs/obsidian';
+import {SupportModal} from '../../src/classes/ui/support-modal';
 import MiniRagPlugin from '../../main';
 import {ChatWindow} from '../../src/classes/chat-window';
 import {OllamaProvider} from '../../src/providers/ollama-provider';
@@ -74,6 +75,42 @@ function makeChatWindow(plugin: MiniRagPlugin) {
 
 beforeEach(() => {
 	__resetNotices();
+});
+
+// The manifest is the one place the funding links are written down.
+describe('support', () => {
+	// Mini-RAG's own link, then a made-up second one.
+	const FUNDING = {'GitHub Sponsors': 'https://github.com/sponsors/jjwheatley', 'Tip jar': 'https://example.com/tip-jar'};
+	const withFunding = () => new MiniRagPlugin(makeApp().app as never, {fundingUrl: FUNDING} as never);
+
+	it('reads its funding links from the manifest', () => {
+		expect(withFunding().fundingLinks()).toEqual([
+			{name: 'GitHub Sponsors', url: FUNDING['GitHub Sponsors']},
+			{name: 'Tip jar', url: FUNDING['Tip jar']},
+		]);
+	});
+
+	it('offers them from a command', async () => {
+		const plugin = withFunding();
+		const addCommand = vi.spyOn(plugin, 'addCommand');
+		const open = vi.spyOn(SupportModal.prototype, 'open').mockImplementation(() => {});
+		await plugin.onload();
+
+		const command = addCommand.mock.calls.map(call => call[0]).find(c => c.id === 'support') as {name: string; callback: () => void};
+		command.callback();
+
+		expect(command.name).toBe('Support development');
+		expect(open).toHaveBeenCalledTimes(1);
+		open.mockRestore();
+	});
+
+	it('adds no command when the manifest has no funding links', async () => {
+		const {plugin} = makePlugin();
+		const addCommand = vi.spyOn(plugin, 'addCommand');
+		await plugin.onload();
+
+		expect(addCommand.mock.calls.map(call => call[0].id)).not.toContain('support');
+	});
 });
 
 describe('onload', () => {

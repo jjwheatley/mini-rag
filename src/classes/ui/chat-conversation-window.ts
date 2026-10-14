@@ -4,6 +4,7 @@ import MiniRagPlugin from "../../../main";
 import {activeProviderConfig} from "../../settings";
 import {APP_NAME, CSS_CLASS_PREFIX, ICON_NAME} from "../../constants";
 import {AiProvider} from "../../providers/types";
+import {openFundingLink, SUPPORT_TITLE, supportTitle} from "../../support";
 
 export class ChatConversationWindow {
 	headerEl: HTMLDivElement;
@@ -37,6 +38,7 @@ export class ChatConversationWindow {
 		const iconEl = header.createEl('span', {cls: CSS_CLASS_PREFIX + 'brand-icon'});
 		setIcon(iconEl, ICON_NAME);
 		header.createEl('span', {text: APP_NAME});
+		this.addSupportButton(header);
 
 		const modelRow = this.headerEl.createEl('div', {cls: CSS_CLASS_PREFIX + 'model-row'});
 		this.modelNameEl = modelRow.createEl('h3', {
@@ -54,6 +56,37 @@ export class ChatConversationWindow {
 		this.headerEl.createEl("div", {text: chatSubject ? 'Context: ' + chatSubject : 'Context-Free'});
 
 		void this.fetchModels();
+	}
+
+	/**
+	 * A heart at the end of the header, offering the manifest's funding links. It opens nothing until
+	 * clicked; with one link there is nothing to choose between, so that opens straight away.
+	 */
+	private addSupportButton(header: HTMLElement) {
+		const links = this.plugin.fundingLinks();
+		if (links.length === 0) return;
+		const button = header.createEl('button', {
+			cls: 'clickable-icon ' + CSS_CLASS_PREFIX + 'icon-button ' + CSS_CLASS_PREFIX + 'support-button',
+		});
+		setIcon(button, 'heart');
+		button.setAttr('aria-label', SUPPORT_TITLE);
+		button.addEventListener('click', () => {
+			if (links.length === 1) {
+				openFundingLink(links[0]);
+				return;
+			}
+			const menu = new Menu();
+			// Obsidian's menus have no title of their own; a label entry serves as one. (A disabled
+			// entry looked the part, but was too faint to read.) Its heart follows the text, as in the
+			// settings banner, rather than taking the icon's place on the left.
+			menu.addItem(item => item.setTitle(supportTitle()).setIsLabel(true));
+			menu.addSeparator();
+			for (const link of links) {
+				menu.addItem(item => item.setTitle(link.name).setIcon('external-link').onClick(() => openFundingLink(link)));
+			}
+			const rect = button.getBoundingClientRect();
+			menu.showAtPosition({x: rect.left, y: rect.bottom + 4});
+		});
 	}
 
 	private async fetchModels() {

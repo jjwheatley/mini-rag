@@ -22,6 +22,8 @@ interface SetupOptions {
 	models?: string[];
 	modelListError?: boolean;
 	settings?: Partial<PluginSettings>;
+	/** The manifest's funding links; none by default, so the header is as before. */
+	fundingLinks?: {name: string; url: string}[];
 }
 
 function setup(options: SetupOptions = {}) {
@@ -41,6 +43,7 @@ function setup(options: SetupOptions = {}) {
 		ai,
 		app: {},
 		saveSettings: vi.fn(async () => {}),
+		fundingLinks: () => options.fundingLinks ?? [],
 		getModelUserFriendlyName: () => {
 			const model = settings.providers.ollama.chatModel;
 			return model ? model.charAt(0).toUpperCase() + model.slice(1) : 'your model';
@@ -559,5 +562,86 @@ describe('naming the model in use', () => {
 		await settle();
 
 		expect(harness.window.headerEl.textContent).toContain('Chat with Mistral');
+	});
+});
+
+// A small way in, where people spend their time, that opens nothing until clicked.
+describe('support button', () => {
+	// Mini-RAG's own link, then a made-up second one, so the menu has something to choose between.
+	const LINKS = [
+		{name: 'GitHub Sponsors', url: 'https://github.com/sponsors/jjwheatley'},
+		{name: 'Tip jar', url: 'https://example.com/tip-jar'},
+	];
+	const heart = (parent: HTMLElement) =>
+		parent.querySelector(`.${CSS_CLASS_PREFIX}brand-header [aria-label="Support Mini-RAG"]`) as HTMLElement | null;
+
+	beforeEach(() => {
+		__resetMenus();
+	});
+
+	it('sits in the header beside the name', () => {
+		const {parent} = setup({fundingLinks: LINKS});
+
+		expect(heart(parent)?.getAttribute('data-icon')).toBe('heart');
+		// One tooltip: Obsidian's, from aria-label. A title showed the browser's beside it.
+		expect(heart(parent)?.hasAttribute('title')).toBe(false);
+	});
+
+	it('lists the funding links when clicked', () => {
+		const {parent} = setup({fundingLinks: LINKS});
+
+		click(heart(parent) as HTMLElement);
+
+		expect(menus.at(-1)?.items.map(item => item.title)).toEqual(['Support Mini-RAG', 'GitHub Sponsors', 'Tip jar']);
+		expect(menus.at(-1)?.shownAt).not.toBeNull();
+	});
+
+	// Obsidian's menus have no title of their own; a label entry serves as one. A disabled entry
+	// looked the part, but was too faint to read.
+	it('titles the menu, set apart from the links', () => {
+		const {parent} = setup({fundingLinks: LINKS});
+
+		click(heart(parent) as HTMLElement);
+		const [title, ...links] = menus.at(-1)?.items ?? [];
+
+		expect(title.title).toBe('Support Mini-RAG');
+		expect(title.isLabel).toBe(true);
+		// Like the settings banner: the heart after the title, not as the entry's icon on the left.
+		expect(title.icon).toBe('');
+		const titleHeart = (title.titleContent as DocumentFragment).lastElementChild as HTMLElement;
+		expect(titleHeart.classList.contains(`${CSS_CLASS_PREFIX}support-heart`)).toBe(true);
+		expect(titleHeart.getAttribute('data-icon')).toBe('heart');
+		expect(title.disabled).toBe(false);
+		expect(links.every(link => !link.isLabel && !link.disabled)).toBe(true);
+		expect(menus.at(-1)?.separators).toBe(1);
+	});
+
+	it('opens the chosen link', async () => {
+		const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+		const {parent} = setup({fundingLinks: LINKS});
+		click(heart(parent) as HTMLElement);
+
+		await menus.at(-1)?.item('Tip jar')?.click();
+
+		expect(open).toHaveBeenCalledWith('https://example.com/tip-jar');
+		open.mockRestore();
+	});
+
+	// With one link, as Mini-RAG has, there is nothing to choose between.
+	it('opens a single link straight away', () => {
+		const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+		const {parent} = setup({fundingLinks: [LINKS[0]]});
+
+		click(heart(parent) as HTMLElement);
+
+		expect(open).toHaveBeenCalledWith('https://github.com/sponsors/jjwheatley');
+		expect(menus).toHaveLength(0);
+		open.mockRestore();
+	});
+
+	it('is left out when the manifest has no funding links', () => {
+		const {parent} = setup();
+
+		expect(heart(parent)).toBeNull();
 	});
 });

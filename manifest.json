@@ -6,5 +6,8 @@
 	"description": "Leverage Retrieval Augmented Generation (RAG) for your notes, using a locally running LLM or AI.",
 	"author": "jjwheatley",
 	"authorUrl": "https://github.com/jjwheatley/",
-	"isDesktopOnly": true
+	"isDesktopOnly": true,
+	"fundingUrl": {
+		"GitHub Sponsors": "https://github.com/sponsors/jjwheatley"
+	}
 }

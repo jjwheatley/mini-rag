@@ -104,7 +104,10 @@ export function normalizePath(path: string): string {
 	return normalized.length > 0 ? normalized : '/';
 }
 
-export function setIcon(_element: unknown, _iconId: string): void {}
+/** Records the icon's name on the element, so a test can check which icon was drawn. */
+export function setIcon(element: unknown, iconId: string): void {
+	(element as Element | undefined)?.setAttribute?.('data-icon', iconId);
+}
 
 export const MarkdownRenderer = {
 	render: vi.fn(async () => {}),
@@ -271,8 +274,13 @@ export class MenuItem {
 	checked = false;
 	disabled = false;
 
-	setTitle(title: string): this {
-		this.title = title;
+	/** The title as given: text, or a fragment such as text followed by an icon. */
+	titleContent: string | DocumentFragment = '';
+
+	/** Like Obsidian's, accepts text or a fragment; `title` keeps the text either way. */
+	setTitle(title: string | DocumentFragment): this {
+		this.titleContent = title;
+		this.title = typeof title === 'string' ? title : title.textContent ?? '';
 		return this;
 	}
 
@@ -288,6 +296,14 @@ export class MenuItem {
 
 	setDisabled(disabled: boolean): this {
 		this.disabled = disabled;
+		return this;
+	}
+
+	/** Whether setIsLabel() made this a label: a heading, not something to click. */
+	isLabel = false;
+
+	setIsLabel(isLabel: boolean): this {
+		this.isLabel = isLabel;
 		return this;
 	}
 
@@ -515,7 +531,11 @@ export class ButtonComponent {
 		return this;
 	}
 
+	/** Whether setCta() made this the row's main button. */
+	cta = false;
+
 	setCta(): this {
+		this.cta = true;
 		return this;
 	}
 
@@ -581,8 +601,14 @@ export class Setting {
 	}
 
 	setName(name: string | DocumentFragment): this {
-		this.name = String(name);
-		if (this.nameEl) this.nameEl.textContent = this.name;
+		this.name = typeof name === 'string' ? name : name.textContent ?? '';
+		if (this.nameEl && typeof document !== 'undefined') {
+			if (typeof name === 'string') {
+				this.nameEl.textContent = name;
+			} else {
+				this.nameEl.replaceChildren(name);
+			}
+		}
 		return this;
 	}
 

@@ -330,6 +330,58 @@
 	background-color: var(--background-modifier-hover);
 }
 
+/* Support: the row at the top of the settings, set apart from the setup steps below it. */
+.mini-rag-support {
+	margin-bottom: var(--size-4-4);
+	padding: var(--size-4-3) var(--size-4-4);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+}
+
+/* The banner's buttons, stacked on the right at one width, level with the title. */
+.mini-rag-support .setting-item-control {
+	flex-direction: column;
+	align-items: stretch;
+	align-self: flex-start;
+	gap: var(--size-4-2);
+}
+
+/* The support text gives its greeting a line of its own, in the banner and in the dialog. */
+.mini-rag-support .setting-item-description,
+.mini-rag-support-text {
+	white-space: pre-line;
+}
+
+/* The heart after "Support Mini-RAG", in the settings banner and the chat panel's support menu. */
+.mini-rag-support-heart {
+	display: inline-flex;
+	vertical-align: middle;
+	/* Centred on the text's middle, it sat low beside the capitals: a nudge up lines it up. */
+	position: relative;
+	top: -2px;
+	margin-left: var(--size-4-2);
+	color: var(--color-red);
+}
+
+/*
+ * The support menu's title has no icon of its own, but Obsidian still gives it an empty icon slot
+ * and the gap after it, which pushed the title right of the links' icons. Without the slot, it
+ * starts where they do.
+ */
+.menu-item:has(.mini-rag-support-heart) .menu-item-icon {
+	display: none;
+}
+
+/* The heart sits at the far end of the chat panel's brand header. */
+.mini-rag-brand-header .mini-rag-support-button {
+	margin-left: auto;
+}
+
+.mini-rag-support-button:hover {
+	color: var(--color-red);
+}
+
 /* Index Error Screen - Start */
 .mini-rag-index-error {
 	display: flex;
