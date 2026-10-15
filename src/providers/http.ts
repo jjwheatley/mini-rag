@@ -7,9 +7,13 @@ export interface JsonRequest {
 	headers?: Record<string, string>;
 }
 
-export interface JsonResult {
+/**
+ * `json` is the parsed body, typed as the caller expects it to be. Nothing checks it against that
+ * type: a server can send anything, so callers read it defensively.
+ */
+export interface JsonResult<T = unknown> {
 	status: number;
-	json: any;
+	json: T;
 	text: string;
 }
 
@@ -18,7 +22,7 @@ export interface JsonResult {
  * the message Obsidian would otherwise throw. That is what lets a 501 become a typed
  * EmbeddingsUnsupportedError instead of a `/status 501/` string match.
  */
-async function sendJson(method: 'GET' | 'POST', request: JsonRequest): Promise<JsonResult> {
+async function sendJson<T>(method: 'GET' | 'POST', request: JsonRequest): Promise<JsonResult<T>> {
 	try {
 		const response = await requestUrl({
 			method,
@@ -30,7 +34,8 @@ async function sendJson(method: 'GET' | 'POST', request: JsonRequest): Promise<J
 				...request.headers,
 			},
 		});
-		return {status: response.status, json: response.json, text: response.text};
+		const json: T = response.json;
+		return {status: response.status, json, text: response.text};
 	} catch (error) {
 		// requestUrl still throws for transport-level failures, which no status can describe.
 		const detail = error instanceof Error ? error.message : String(error);
@@ -38,12 +43,12 @@ async function sendJson(method: 'GET' | 'POST', request: JsonRequest): Promise<J
 	}
 }
 
-export function getJson(request: JsonRequest): Promise<JsonResult> {
-	return sendJson('GET', request);
+export function getJson<T = unknown>(request: JsonRequest): Promise<JsonResult<T>> {
+	return sendJson<T>('GET', request);
 }
 
-export function postJson(request: JsonRequest): Promise<JsonResult> {
-	return sendJson('POST', request);
+export function postJson<T = unknown>(request: JsonRequest): Promise<JsonResult<T>> {
+	return sendJson<T>('POST', request);
 }
 
 /**

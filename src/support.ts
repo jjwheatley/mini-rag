@@ -49,13 +49,15 @@ export function openFundingLink(link: FundingLink): void {
 
 /** A button for each link on `setting`, the first as the main one. */
 export function addFundingButtons(setting: Setting, links: FundingLink[], afterOpen?: () => void): Setting {
-	links.forEach((link, index) => setting.addButton(button => {
-		button.setButtonText(link.name).onClick(() => {
-			openFundingLink(link);
-			afterOpen?.();
+	links.forEach((link, index) => {
+		setting.addButton(button => {
+			button.setButtonText(link.name).onClick(() => {
+				openFundingLink(link);
+				afterOpen?.();
+			});
+			if (index === 0) button.setCta();
 		});
-		if (index === 0) button.setCta();
-	}));
+	});
 	return setting;
 }
 

@@ -891,7 +891,6 @@ describe('temperature', () => {
 
 		expect(slider.getValue()).toBe(0.45);
 		expect(slider.limits).toEqual({min: 0.1, max: 1.0, step: 0.05});
-		expect(slider.dynamicTooltip).toBe(true);
 	});
 
 	it('saves a change', async () => {

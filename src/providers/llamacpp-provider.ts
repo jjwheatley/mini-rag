@@ -27,6 +27,12 @@ function listenPort(url: string, fallback: string): string {
 	return fallback;
 }
 
+/** What Mini-RAG reads from llama-server's /props. */
+interface LlamaServerProps {
+	model_path?: unknown;
+	default_generation_settings?: {model?: unknown; n_ctx?: unknown};
+}
+
 /** A Hugging Face id ("owner/repo", optionally ":quant"), which only -hf can start. */
 const HF_MODEL_ID = /^[\w.-]+\/[\w.-]+(?::[\w.-]+)?$/;
 
@@ -136,7 +142,7 @@ export class LlamaCppProvider extends OpenAiCompatibleProvider {
 	}
 
 	private async modelFromProps(base: string): Promise<string[]> {
-		const result = await getJson({url: `${base}/props`});
+		const result = await getJson<LlamaServerProps>({url: `${base}/props`});
 		if (result.status >= 400) {
 			throw this.requestError(result.status, result.text, result.json);
 		}
@@ -148,7 +154,7 @@ export class LlamaCppProvider extends OpenAiCompatibleProvider {
 	/** The window llama-server was started with (-c), which it refuses to exceed. */
 	async contextLength(): Promise<number | null> {
 		try {
-			const result = await getJson({url: `${this.baseUrl}/props`});
+			const result = await getJson<LlamaServerProps>({url: `${this.baseUrl}/props`});
 			const size = result.status < 400 ? result.json?.default_generation_settings?.n_ctx : undefined;
 			return typeof size === 'number' && size > 0 ? size : null;
 		} catch {

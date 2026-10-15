@@ -48,7 +48,7 @@ export class ChatInput {
 	focusIfActiveView() {
 		const activeChatView = this.chatWindow.app.workspace.getActiveViewOfType(ChatWindow);
 		if (activeChatView === this.chatWindow) {
-			requestAnimationFrame(() => this.htmlElement.focus());
+			window.requestAnimationFrame(() => this.htmlElement.focus());
 		}
 	}
 }

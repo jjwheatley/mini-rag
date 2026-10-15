@@ -372,7 +372,7 @@ export class ChatWindow extends ItemView {
 					clipboard.writeText(command);
 					setIcon(copyBtn, 'check');
 					copyBtn.setAttr('aria-label', 'Copied!');
-					setTimeout(() => {
+					window.setTimeout(() => {
 						setIcon(copyBtn, 'copy');
 						copyBtn.setAttr('aria-label', 'Copy');
 					}, 2000);

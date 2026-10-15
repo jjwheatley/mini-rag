@@ -608,12 +608,25 @@ describe('support button', () => {
 		expect(title.isLabel).toBe(true);
 		// Like the settings banner: the heart after the title, not as the entry's icon on the left.
 		expect(title.icon).toBe('');
-		const titleHeart = (title.titleContent as DocumentFragment).lastElementChild as HTMLElement;
+		const titleHeart = title.dom?.querySelector('.menu-item-title')?.lastElementChild as HTMLElement;
 		expect(titleHeart.classList.contains(`${CSS_CLASS_PREFIX}support-heart`)).toBe(true);
 		expect(titleHeart.getAttribute('data-icon')).toBe('heart');
 		expect(title.disabled).toBe(false);
 		expect(links.every(link => !link.isLabel && !link.disabled)).toBe(true);
 		expect(menus.at(-1)?.separators).toBe(1);
+	});
+
+	// Obsidian gives every entry an icon slot, filled or not. The title's empty one would push it
+	// right of the links' icons, so its entry is marked for the CSS that hides the slot.
+	it('marks the title entry, and only that, to hide its empty icon slot', () => {
+		const {parent} = setup({fundingLinks: LINKS});
+
+		click(heart(parent) as HTMLElement);
+		const [title, ...links] = menus.at(-1)?.items ?? [];
+
+		const marker = `${CSS_CLASS_PREFIX}support-menu-title`;
+		expect(title.dom?.classList.contains(marker)).toBe(true);
+		expect(links.some(link => link.dom?.classList.contains(marker))).toBe(false);
 	});
 
 	it('opens the chosen link', async () => {

@@ -115,7 +115,7 @@ export async function withRetry<T>(
 			if (attempt < retries) {
 				// Check for an abort that arrived while the previous attempt was running.
 				if (shouldAbort?.()) throw lastError;
-				await new Promise(resolve => setTimeout(resolve, delayMs));
+				await new Promise(resolve => window.setTimeout(resolve, delayMs));
 				// Check again after the sleep — abort() may have been called during the delay.
 				if (shouldAbort?.()) throw lastError;
 			}

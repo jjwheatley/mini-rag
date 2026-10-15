@@ -141,7 +141,7 @@ export abstract class OpenAiCompatibleProvider extends BaseHttpProvider {
 	// --- Embeddings ----------------------------------------------------------------------------
 
 	protected async embedBatch(texts: string[]): Promise<number[][]> {
-		const result = await postJson({
+		const result = await postJson<{error?: unknown; data?: EmbeddingDatum[]}>({
 			url: `${this.embeddingEndpoint}${OPENAI_API.embeddings}`,
 			body: {model: this.resolvedEmbeddingModel, input: texts},
 		});
@@ -150,7 +150,7 @@ export abstract class OpenAiCompatibleProvider extends BaseHttpProvider {
 			throw this.classifyEmbedError(result.status, result.json, result.text);
 		}
 
-		const data = (result.json?.data ?? []) as EmbeddingDatum[];
+		const data = result.json?.data ?? [];
 		// The index builder assigns vectors to chunks by position, so a short response would slide
 		// every later chunk onto its neighbour's vector without any error.
 		if (data.length !== texts.length) {
@@ -189,11 +189,11 @@ export abstract class OpenAiCompatibleProvider extends BaseHttpProvider {
 	/** The models a server at `base` reports. Separate from getModelList for second servers. */
 	protected async listModelsAt(base: string): Promise<string[]> {
 		return this.retryListing(async () => {
-			const result = await getJson({url: `${base}${OPENAI_API.models}`});
+			const result = await getJson<{data?: {id: string}[]}>({url: `${base}${OPENAI_API.models}`});
 			if (result.status >= 400) {
 				throw this.requestError(result.status, result.text, result.json);
 			}
-			const ids = ((result.json?.data ?? []) as {id: string}[]).map(model => model.id);
+			const ids = (result.json?.data ?? []).map(model => model.id);
 			return ids.sort((a, b) => a.localeCompare(b));
 		});
 	}

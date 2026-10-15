@@ -79,7 +79,13 @@ export class ChatConversationWindow {
 			// Obsidian's menus have no title of their own; a label entry serves as one. (A disabled
 			// entry looked the part, but was too faint to read.) Its heart follows the text, as in the
 			// settings banner, rather than taking the icon's place on the left.
-			menu.addItem(item => item.setTitle(supportTitle()).setIsLabel(true));
+			const title = supportTitle();
+			const titleHeart = title.lastElementChild as HTMLElement;
+			menu.addItem(item => item.setTitle(title).setIsLabel(true));
+			// The entry still gets an empty icon slot, which would push the title right of the links'
+			// icons. The heart is now inside the entry, so it can mark the entry for the CSS that
+			// hides the slot.
+			titleHeart.closest('.menu-item')?.classList.add(CSS_CLASS_PREFIX + 'support-menu-title');
 			menu.addSeparator();
 			for (const link of links) {
 				menu.addItem(item => item.setTitle(link.name).setIcon('external-link').onClick(() => openFundingLink(link)));

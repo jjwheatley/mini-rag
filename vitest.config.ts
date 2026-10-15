@@ -23,6 +23,8 @@ export default defineConfig({
 		// globals, and the DOM-bound UI classes are deliberately not unit-tested.
 		environment: 'node',
 		include: ['test/**/*.test.ts'],
+		// The plugin calls timers through `window`, which the node environment lacks.
+		setupFiles: ['test/setup/window.ts'],
 		globals: false,
 		restoreMocks: true,
 		unstubEnvs: true,

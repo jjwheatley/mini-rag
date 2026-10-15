@@ -12,6 +12,7 @@ import MiniRagPlugin from '../main';
 import {EmbeddingSource} from '../src/providers/types';
 
 // Mirrors CACHE_VERSION / CACHE_DIR / CACHE_FILE, which are module-private in contextualizer.ts.
+// CACHE_DIR is under the vault's configuration folder: the harness's is the default, `.obsidian`.
 const CACHE_VERSION = 3;
 const CACHE_DIR = '.obsidian/plugins/mini-rag/cache';
 const CACHE_FILE = '.mini-rag-cache.json';
@@ -111,7 +112,7 @@ interface Harness {
  * misalignment between the flat embedding array and the per-file chunks is visible rather than
  * merely plausible.
  */
-function makeHarness(overrides: Partial<PluginSettings> = {}): Harness {
+function makeHarness(overrides: Partial<PluginSettings> = {}, configDir = '.obsidian'): Harness {
 	const adapter = new FakeAdapter();
 	const settings: PluginSettings = {...defaultSettings(), ...overrides};
 	const noteContents = new Map<string, string>();
@@ -131,6 +132,7 @@ function makeHarness(overrides: Partial<PluginSettings> = {}): Harness {
 		app: {
 			vault: {
 				adapter,
+				configDir,
 				getFileByPath: (path: string) => vaultFiles.get(path) ?? null,
 			},
 			metadataCache: {
@@ -180,7 +182,7 @@ function noteWithChunks(count: number): string {
 
 beforeEach(() => {
 	// buildIndex logs a timing diagnostic; keep the test output readable.
-	vi.spyOn(console, 'log').mockImplementation(() => {});
+	vi.spyOn(console, 'debug').mockImplementation(() => {});
 });
 
 describe('context membership', () => {
@@ -253,6 +255,19 @@ describe('buildIndex', () => {
 
 		await expect(h.buildIndex()).rejects.toBeInstanceOf(NoModelChosenError);
 		expect(h.ai.getEmbeddings).not.toHaveBeenCalled();
+	});
+
+	// Obsidian asks plugins to keep the console to errors by default. The timing is for whoever
+	// turns on the console's verbose level.
+	it('logs its timing at debug level only', async () => {
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const h = makeHarness();
+		await h.addNote('a.md', noteWithChunks(2));
+
+		await h.buildIndex();
+
+		expect(console.debug).toHaveBeenCalledWith(expect.stringContaining('[Mini-RAG] indexed 1 file(s), 2 new chunk(s)'));
+		expect(log).not.toHaveBeenCalled();
 	});
 
 	it('makes no embedding call for an empty context', async () => {
@@ -538,6 +553,19 @@ describe('embedding cache', () => {
 		const gitignore = `${CACHE_DIR}/.gitignore`;
 		expect(h.adapter.files.get(gitignore)).toBe('*\n!.gitignore\n');
 		expect(h.adapter.writes.filter(w => w === gitignore)).toHaveLength(1);
+	});
+
+	// `.obsidian` is only the default: each vault can name its configuration folder.
+	it("keeps the cache in the vault's own configuration folder", async () => {
+		const h = makeHarness({embeddingCacheEnabled: true}, '.config');
+		await h.addNote('one/a.md', noteWithChunks(1));
+
+		await h.buildIndex();
+
+		expect([...h.adapter.files.keys()].sort()).toEqual([
+			'.config/plugins/mini-rag/cache/.gitignore',
+			'.config/plugins/mini-rag/cache/one/.mini-rag-cache.json',
+		]);
 	});
 
 	it('still indexes when the cache write fails', async () => {

@@ -11,7 +11,6 @@ import {ContextNote, fitNotes} from "../context-budget";
 // Cache format version — bump if the FolderCache shape or the key format changes. 3 added the
 // provider and embedding endpoint to the key; older caches are discarded wholesale on load.
 const CACHE_VERSION = 3;
-const CACHE_DIR = normalizePath('.obsidian/plugins/mini-rag/cache');
 const CACHE_FILE = '.mini-rag-cache.json';
 
 interface FileCacheEntry {
@@ -40,6 +39,11 @@ export class Contextualizer {
 		this.plugin = plugin;
 		this.contextPaths = new Map();
 		this.index = new VectorIndex();
+	}
+
+	/** Under the vault's configuration folder, which is only `.obsidian` by default. */
+	private get cacheDir(): string {
+		return normalizePath(`${this.plugin.app.vault.configDir}/plugins/mini-rag/cache`);
 	}
 
 	async addFileToContext(file: TAbstractFile) {
@@ -130,11 +134,11 @@ export class Contextualizer {
 		const embeddings = flatTexts.length ? await ai.getEmbeddings(flatTexts) : [];
 		const embedMs = performance.now() - embedStart;
 
-		// Diagnostic timing — open the dev console (Ctrl+Shift+I) to read it.
-		// Shows whether time is going to embedding compute vs. everything else.
+		// Diagnostic timing — open the dev console (Ctrl+Shift+I) and show its Verbose level to read
+		// it. Shows whether time is going to embedding compute vs. everything else.
 		if (flatTexts.length > 0) {
 			const perChunk = (embedMs / flatTexts.length).toFixed(1);
-			console.log(
+			console.debug(
 				`[Mini-RAG] indexed ${misses.length} file(s), ${flatTexts.length} new chunk(s), ` +
 				`${reusedChunks.length} cached chunk(s) reused — embedding took ${(embedMs / 1000).toFixed(1)}s ` +
 				`(${perChunk}ms/chunk) on model "${model}"`
@@ -150,7 +154,7 @@ export class Contextualizer {
 		const mismatch = vectors.find(vector => vector.length !== expected);
 		if (mismatch) {
 			await this.discardCaches(folderCaches, cachingEnabled);
-			throw new EmbeddingDimensionMismatchError(expected as number, mismatch.length);
+			throw new EmbeddingDimensionMismatchError(expected, mismatch.length);
 		}
 
 		let i = 0;
@@ -187,7 +191,7 @@ export class Contextualizer {
 	}
 
 	private cacheFilePathFor(folder: string): {dir: string; file: string} {
-		const dir = folder ? normalizePath(`${CACHE_DIR}/${folder}`) : CACHE_DIR;
+		const dir = folder ? normalizePath(`${this.cacheDir}/${folder}`) : this.cacheDir;
 		return {dir, file: normalizePath(`${dir}/${CACHE_FILE}`)};
 	}
 
@@ -231,7 +235,7 @@ export class Contextualizer {
 	// equivalent — exclude the cache via the "Sync installed community plugins" setting.
 	private async ensureGitignore(): Promise<void> {
 		const adapter = this.plugin.app.vault.adapter;
-		const path = normalizePath(`${CACHE_DIR}/.gitignore`);
+		const path = normalizePath(`${this.cacheDir}/.gitignore`);
 		if (!(await adapter.exists(path))) {
 			await adapter.write(path, '*\n!.gitignore\n');
 		}

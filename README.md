@@ -107,7 +107,7 @@ The conversation remembers the summary, so you can ask follow-up questions about
 
 Generating embeddings for a large folder can take a while. With **Cache embeddings on disk** enabled, Mini-RAG stores the results so that the next time you open the same note or folder, unchanged notes are loaded instantly and only new or edited notes are re-embedded.
 
-The cache is stored per folder under `.obsidian/plugins/mini-rag/cache/`, mirroring your vault's folder structure. Each note's entry is keyed by a hash of its content, the chunking version, the provider, the embedding model, and the embedding server's address — so editing a note, or switching embedding model or provider, automatically re-embeds only what changed. Entries for deleted notes are cleaned up automatically.
+The cache is stored per folder under `plugins/mini-rag/cache/` in your vault's configuration folder (`.obsidian`, unless you have changed it), mirroring your vault's folder structure. Each note's entry is keyed by a hash of its content, the chunking version, the provider, the embedding model, and the embedding server's address — so editing a note, or switching embedding model or provider, automatically re-embeds only what changed. Entries for deleted notes are cleaned up automatically.
 
 If the embedding model behind a server changes without its name changing (for example, `llama-server` restarted on a different model on the same port), Mini-RAG notices that the embeddings no longer match, clears the cache, and asks you to rebuild.
 

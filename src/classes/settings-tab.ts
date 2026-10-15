@@ -44,8 +44,8 @@ export class SettingTab extends PluginSettingTab {
 	 * the user just switched away from — can be recognised when it arrives, and dropped.
 	 */
 	private renderSeq = 0;
-	private urlDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	private embeddingUrlDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private urlDebounceTimer: number | null = null;
+	private embeddingUrlDebounceTimer: number | null = null;
 	private embeddingDropdown: DropdownComponent | null = null;
 	private embeddingDropdownContainerEl: HTMLElement | null = null;
 	private embeddingStatusEl: HTMLElement | null = null;
@@ -138,8 +138,8 @@ export class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					// The command to start a model names this URL's port.
 					this.updateChatModelHint();
-					if (this.urlDebounceTimer !== null) clearTimeout(this.urlDebounceTimer);
-					this.urlDebounceTimer = setTimeout(() => {
+					if (this.urlDebounceTimer !== null) window.clearTimeout(this.urlDebounceTimer);
+					this.urlDebounceTimer = window.setTimeout(() => {
 						this.urlDebounceTimer = null;
 						void this.refreshModelList();
 					}, 400);
@@ -166,8 +166,8 @@ export class SettingTab extends PluginSettingTab {
 					text.setValue(this.config.embeddingUrl);
 					await this.plugin.saveSettings();
 					// The embedding picker lists what this server runs, so ask the new address.
-					if (this.embeddingUrlDebounceTimer !== null) clearTimeout(this.embeddingUrlDebounceTimer);
-					this.embeddingUrlDebounceTimer = setTimeout(() => {
+					if (this.embeddingUrlDebounceTimer !== null) window.clearTimeout(this.embeddingUrlDebounceTimer);
+					this.embeddingUrlDebounceTimer = window.setTimeout(() => {
 						this.embeddingUrlDebounceTimer = null;
 						void this.refreshEmbeddingOptions(this.installedModels);
 					}, 400);
@@ -365,7 +365,6 @@ export class SettingTab extends PluginSettingTab {
 			.addSlider(slider => slider
 				.setLimits(0.1, 1.0, 0.05)
 				.setValue(this.plugin.settings.temperature)
-				.setDynamicTooltip()
 				.onChange(async (value) => {
 					this.plugin.settings.temperature = value;
 					await this.plugin.saveSettings();
@@ -691,7 +690,6 @@ export class SettingTab extends PluginSettingTab {
 			.addSlider(slider => slider
 				.setLimits(1, 10, 1)
 				.setValue(this.plugin.settings.ragTopK)
-				.setDynamicTooltip()
 				.onChange(async (value) => {
 					this.plugin.settings.ragTopK = value;
 					await this.plugin.saveSettings();

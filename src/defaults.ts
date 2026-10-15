@@ -27,7 +27,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Readonly<Record<ProviderId, ProviderConfi
 		embeddingModel: '',
 		dedicatedEmbeddingEnabled: false,
 	}),
-}) as Readonly<Record<ProviderId, ProviderConfig>>;
+});
 
 export function defaultProviderConfig(provider: ProviderId): ProviderConfig {
 	return {...DEFAULT_PROVIDER_CONFIGS[provider]};

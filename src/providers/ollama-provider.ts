@@ -49,7 +49,7 @@ export class OllamaProvider extends BaseHttpProvider {
 
 	protected async embedBatch(texts: string[], isLastBatch: boolean): Promise<number[][]> {
 		const dedicated = this.config.dedicatedEmbeddingEnabled;
-		const result = await postJson({
+		const result = await postJson<{error?: unknown; embeddings: number[][]}>({
 			url: `${this.embeddingEndpoint}${OLLAMA_API.embed}`,
 			body: {
 				model: this.resolvedEmbeddingModel,
@@ -65,7 +65,7 @@ export class OllamaProvider extends BaseHttpProvider {
 		if (result.status >= 400 || result.json?.error) {
 			throw this.classifyEmbedError(result.status, result.json, result.text);
 		}
-		return result.json.embeddings as number[][];
+		return result.json.embeddings;
 	}
 
 	/**
@@ -92,11 +92,11 @@ export class OllamaProvider extends BaseHttpProvider {
 
 	async getModelList(): Promise<string[]> {
 		return this.retryListing(async () => {
-			const result = await getJson({url: `${this.baseUrl}${OLLAMA_API.tags}`});
+			const result = await getJson<{models?: {name: string}[]}>({url: `${this.baseUrl}${OLLAMA_API.tags}`});
 			if (result.status >= 400) {
 				throw new ProviderError(`Ollama request failed (${result.status})`, {status: result.status});
 			}
-			const models = (result.json?.models ?? []).map((model: {name: string}) => model.name) as string[];
+			const models = (result.json?.models ?? []).map(model => model.name);
 			models.sort((a, b) => a.localeCompare(b));
 			return models;
 		});
@@ -114,15 +114,15 @@ export class OllamaProvider extends BaseHttpProvider {
 		const deadline = Date.now() + timeoutMs;
 		while (Date.now() < deadline) {
 			if (!(await this.isModelLoaded(model))) return true;
-			await new Promise(resolve => setTimeout(resolve, 300));
+			await new Promise(resolve => window.setTimeout(resolve, 300));
 		}
 		return false;
 	}
 
 	private async isModelLoaded(model: string): Promise<boolean> {
 		try {
-			const result = await getJson({url: `${this.baseUrl}${OLLAMA_API.ps}`});
-			const loaded = (result.json?.models ?? []) as {name?: string; model?: string}[];
+			const result = await getJson<{models?: {name?: string; model?: string}[]}>({url: `${this.baseUrl}${OLLAMA_API.ps}`});
+			const loaded = result.json?.models ?? [];
 			return loaded.some(entry => {
 				const name = entry.name ?? entry.model ?? '';
 				return name === model || name.startsWith(model + ':');

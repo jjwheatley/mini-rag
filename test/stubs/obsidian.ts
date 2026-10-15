@@ -277,10 +277,20 @@ export class MenuItem {
 	/** The title as given: text, or a fragment such as text followed by an icon. */
 	titleContent: string | DocumentFragment = '';
 
-	/** Like Obsidian's, accepts text or a fragment; `title` keeps the text either way. */
+	/**
+	 * Under jsdom, the entry's element as Obsidian builds it: `.menu-item`, holding an icon slot and
+	 * then the title. Null in the node environment.
+	 */
+	readonly dom: HTMLElement | null = typeof document !== 'undefined' ? menuItemDom() : null;
+
+	/**
+	 * Like Obsidian's, accepts text or a fragment; `title` keeps the text either way. A fragment's
+	 * nodes move into the entry's title element, as they do in Obsidian.
+	 */
 	setTitle(title: string | DocumentFragment): this {
 		this.titleContent = title;
 		this.title = typeof title === 'string' ? title : title.textContent ?? '';
+		this.dom?.querySelector('.menu-item-title')?.replaceChildren(title);
 		return this;
 	}
 
@@ -316,6 +326,17 @@ export class MenuItem {
 	async click(): Promise<void> {
 		await this.clickHandler?.();
 	}
+}
+
+function menuItemDom(): HTMLElement {
+	const dom = document.createElement('div');
+	dom.className = 'menu-item tappable';
+	for (const cls of ['menu-item-icon', 'menu-item-title']) {
+		const child = document.createElement('div');
+		child.className = cls;
+		dom.appendChild(child);
+	}
+	return dom;
 }
 
 /** Every Menu constructed during a test, newest last. */
@@ -439,7 +460,6 @@ export class ToggleComponent extends ValueComponentStub<boolean> {
 export class SliderComponent extends ValueComponentStub<number> {
 	sliderEl: any = stubEl('input');
 	limits: {min: number; max: number; step: number} | null = null;
-	dynamicTooltip = false;
 
 	constructor() {
 		super();
@@ -451,10 +471,8 @@ export class SliderComponent extends ValueComponentStub<number> {
 		return this;
 	}
 
-	setDynamicTooltip(): this {
-		this.dynamicTooltip = true;
-		return this;
-	}
+	// No setDynamicTooltip(): Obsidian 1.13 deprecated it, since sliders now always show their value,
+	// so a call to it fails here.
 }
 
 export class DropdownComponent extends ValueComponentStub<string> {

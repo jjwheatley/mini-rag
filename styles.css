@@ -367,9 +367,9 @@
 /*
  * The support menu's title has no icon of its own, but Obsidian still gives it an empty icon slot
  * and the gap after it, which pushed the title right of the links' icons. Without the slot, it
- * starts where they do.
+ * starts where they do. The chat panel marks the title's entry with this class.
  */
-.menu-item:has(.mini-rag-support-heart) .menu-item-icon {
+.mini-rag-support-menu-title .menu-item-icon {
 	display: none;
 }
 
