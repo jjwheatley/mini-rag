@@ -10,7 +10,7 @@
     "main.ts",
     "src/**/*.ts",
     "test/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.mts"
   ],
   "exclude": [
     "node_modules",

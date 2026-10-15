@@ -1,5 +1,5 @@
 /**
- * Hand-written stub for the `obsidian` module, aliased in by vitest.config.ts.
+ * Hand-written stub for the `obsidian` module, aliased in by vitest.config.mts.
  *
  * Anything a module-under-test evaluates at import time needs a real class here
  * (`class ChatWindow extends ItemView` runs at load). Keep this minimal — grow it only when a
