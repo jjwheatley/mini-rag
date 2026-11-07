@@ -228,16 +228,147 @@ export class Plugin extends Component {
 	async saveData(_data: unknown): Promise<void> {}
 }
 
+/** The Obsidian version requireApiVersion() reports: below 1.13 unless a test says otherwise. */
+let apiVersion = '1.12.0';
+
+export function __setApiVersion(version: string): void {
+	apiVersion = version;
+}
+
+export function requireApiVersion(version: string): boolean {
+	const [have, want] = [apiVersion, version].map(v => v.split('.').map(Number));
+	for (let i = 0; i < 3; i++) {
+		if (have[i] !== want[i]) return have[i] > want[i];
+	}
+	return true;
+}
+
+/** Evaluates a definition's `visible` (or similar) option, which may be a value or a function. */
+const resolveOption = <T>(option: T | (() => T) | undefined, fallback: T): T =>
+	option === undefined ? fallback : typeof option === 'function' ? (option as () => T)() : option;
+
+/** A row drawn from a definition, kept so a redraw can reuse its Setting as Obsidian does. */
+interface RenderedRow {
+	key: string;
+	def: any;
+	setting: Setting;
+	cleanup?: () => void;
+}
+
 export class PluginSettingTab {
 	containerEl: any;
+	/** As Obsidian 1.13+ stores them: what getSettingDefinitions() returned at the last update(). */
+	settingItems: any[] = [];
+	/** The rows the last declarative draw made, in order. */
+	renderedRows: RenderedRow[] = [];
+	/** Whether the tab is open in the settings, so update() redraws it. */
+	isOpen = false;
 
 	constructor(public app: any, public plugin: any) {
 		this.containerEl = typeof document !== 'undefined' ? document.createElement('div') : {};
 	}
 
+	getSettingDefinitions(): any[] {
+		return [];
+	}
+
+	/** Like Obsidian's: stores the definitions, and redraws the tab if it is open. */
+	update(): void {
+		this.settingItems = this.getSettingDefinitions();
+		if (this.isOpen) renderDefinitions(this);
+	}
+
+	/** Re-evaluates each drawn row's `visible` option, without drawing anything again. */
+	refreshDomState(): void {
+		for (const {def, setting} of this.renderedRows) setting.settingEl.toggle(resolveOption(def.visible, true));
+	}
+
 	display(): void {}
 
 	hide(): void {}
+}
+
+/**
+ * What Obsidian does when the user opens a settings tab: draw it from its definitions if it has
+ * any (1.13+), or else call display(). Call tab.update() first, as adding the tab does.
+ */
+export function __openSettingTab(tab: any): void {
+	tab.isOpen = true;
+	if (tab.settingItems.length > 0) renderDefinitions(tab);
+	else tab.display();
+}
+
+/**
+ * Obsidian 1.13+'s declarative draw, reduced to what a plugin can observe. Loose items are wrapped
+ * in a group of their own; each item gets a Setting, named and described, then its render(setting,
+ * group). A redraw reuses a row's Setting (after its cleanup and Setting.clear()), so whatever a
+ * render put on the row element itself survives into the next draw.
+ */
+function renderDefinitions(tab: PluginSettingTab): void {
+	const groups: any[] = [];
+	let loose: any[] | null = null;
+	for (const item of tab.settingItems) {
+		if (item.type === 'group' || item.type === 'list') {
+			groups.push(item);
+			loose = null;
+		} else {
+			if (!loose) groups.push({type: 'group', items: loose = []});
+			loose.push(item);
+		}
+	}
+
+	const previous = new Map(tab.renderedRows.map(row => [row.key, row]));
+	const rows: RenderedRow[] = [];
+	tab.containerEl.empty();
+	groups.forEach((group, index) => {
+		const settingGroup = new SettingGroup(tab.containerEl);
+		if (group.heading) settingGroup.setHeading(group.heading);
+		for (const def of group.items ?? []) {
+			const key = `${index}:${def.name}`;
+			const reused = previous.get(key);
+			let setting: Setting;
+			if (reused) {
+				reused.cleanup?.();
+				setting = reused.setting.clear();
+				settingGroup.listEl.appendChild(setting.settingEl);
+			} else {
+				setting = new Setting(settingGroup.listEl);
+			}
+			setting.setName(def.name ?? '');
+			setting.setDesc(def.desc ?? '');
+			const cleanup = def.render?.(setting, settingGroup);
+			rows.push({key, def, setting, cleanup: typeof cleanup === 'function' ? cleanup : undefined});
+		}
+	});
+	tab.renderedRows = rows;
+	tab.refreshDomState();
+}
+
+/** Like Obsidian's: a heading row, shown once it has text, above a list of settings. */
+export class SettingGroup {
+	groupEl: any;
+	headerEl: any;
+	listEl: any;
+	/** The heading's text, for asserting. */
+	heading = '';
+
+	constructor(containerEl: any) {
+		this.groupEl = stubEl();
+		this.groupEl.classList?.add('setting-group');
+		this.headerEl = stubEl();
+		this.headerEl.classList?.add('setting-item', 'setting-item-heading');
+		this.listEl = stubEl();
+		this.groupEl.appendChild?.(this.listEl);
+		containerEl?.appendChild?.(this.groupEl);
+	}
+
+	setHeading(text: string | DocumentFragment): this {
+		this.heading = typeof text === 'string' ? text : text.textContent ?? '';
+		this.headerEl.replaceChildren?.(text);
+		if (this.heading) this.groupEl.prepend?.(this.headerEl);
+		else this.headerEl.remove?.();
+		return this;
+	}
 }
 
 export class Modal {
@@ -575,6 +706,7 @@ export const settingRows: Setting[] = [];
 
 export function __resetSettings(): void {
 	settingRows.length = 0;
+	apiVersion = '1.12.0';
 }
 
 /**
@@ -648,6 +780,13 @@ export class Setting {
 
 	setClass(cls: string): this {
 		this.settingEl?.classList?.add(cls);
+		return this;
+	}
+
+	/** Like Obsidian's: empties the controls only. The name, description and row element stay. */
+	clear(): this {
+		this.controlEl?.replaceChildren?.();
+		this.components = [];
 		return this;
 	}
 

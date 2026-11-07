@@ -15,7 +15,8 @@ import {
 import {ModelInstallHint, ProviderCapabilities, ProviderId} from '../../src/providers/types';
 import {defaultSettings} from '../../src/defaults';
 import {PluginSettings, ProviderConfig} from '../../src/types';
-import {chunkEvery, errorResponse, installFetch, sse, streamResponse} from '../helpers/stream';
+import {StreamRequest} from '../../src/providers/stream-transport';
+import {chunkEvery, errorResponse, installTransport, sse, streamResponse} from '../helpers/stream';
 
 const URL_BASE = 'http://localhost:8080';
 
@@ -58,8 +59,8 @@ const delta = (content?: string) => ({
 	choices: [{index: 0, delta: content === undefined ? {role: 'assistant'} : {content}, finish_reason: null}],
 });
 
-const bodyOf = (spy: ReturnType<typeof installFetch>, call = 0) =>
-	JSON.parse(String((spy.mock.calls[call][1] as RequestInit).body));
+const bodyOf = (spy: ReturnType<typeof installTransport>, call = 0) =>
+	JSON.parse(String((spy.mock.calls[call][1] as StreamRequest).body));
 
 beforeEach(() => {
 	__resetRequestUrl();
@@ -71,7 +72,7 @@ afterEach(() => {
 
 describe('chat streaming', () => {
 	it('posts to /v1/chat/completions with the model, messages, temperature and stream flags', async () => {
-		const spy = installFetch(async () => streamResponse(sse([delta('hi'), '[DONE]'])));
+		const spy = installTransport(async () => streamResponse(sse([delta('hi'), '[DONE]'])));
 		const {provider} = makeProvider({}, {temperature: 0.3});
 
 		await provider.sendQuestion('why?');
@@ -90,7 +91,7 @@ describe('chat streaming', () => {
 
 	describe('request options', () => {
 		it('caps the answer when asked', async () => {
-			const spy = installFetch(async () => streamResponse(sse([delta('hi'), '[DONE]'])));
+			const spy = installTransport(async () => streamResponse(sse([delta('hi'), '[DONE]'])));
 			const {provider} = makeProvider();
 
 			await provider.complete('p', {maxTokens: 512});
@@ -99,7 +100,7 @@ describe('chat streaming', () => {
 		});
 
 		it('reports the prompt\'s token count from the closing usage chunk', async () => {
-			installFetch(async () => streamResponse(sse([
+			installTransport(async () => streamResponse(sse([
 				delta('a'),
 				{usage: {prompt_tokens: 1534, completion_tokens: 9}, choices: []},
 				'[DONE]',
@@ -114,7 +115,7 @@ describe('chat streaming', () => {
 
 		// llama-server reports its own timings, with or without the usage chunk.
 		it('reads llama-server\'s timings when there is no usage chunk', async () => {
-			installFetch(async () => streamResponse(sse([
+			installTransport(async () => streamResponse(sse([
 				{choices: [{delta: {content: 'a'}}], timings: {prompt_n: 812}},
 				'[DONE]',
 			])));
@@ -127,7 +128,7 @@ describe('chat streaming', () => {
 		});
 
 		it('reports nothing when the server does not say', async () => {
-			installFetch(async () => streamResponse(sse([delta('a'), '[DONE]'])));
+			installTransport(async () => streamResponse(sse([delta('a'), '[DONE]'])));
 			const {provider} = makeProvider();
 			const onUsage = vi.fn();
 
@@ -138,7 +139,7 @@ describe('chat streaming', () => {
 	});
 
 	it('carries per-turn context through as the system message', async () => {
-		const spy = installFetch(async () => streamResponse(sse([delta('ok'), '[DONE]'])));
+		const spy = installTransport(async () => streamResponse(sse([delta('ok'), '[DONE]'])));
 		const {provider} = makeProvider();
 
 		await provider.sendQuestion('why?', {context: 'EXCERPTS'});
@@ -150,7 +151,7 @@ describe('chat streaming', () => {
 	});
 
 	it('concatenates the deltas and reports each token', async () => {
-		installFetch(async () => streamResponse(sse([delta('Hel'), delta('lo'), delta('!'), '[DONE]'])));
+		installTransport(async () => streamResponse(sse([delta('Hel'), delta('lo'), delta('!'), '[DONE]'])));
 		const {provider} = makeProvider();
 		const seen: [string, string][] = [];
 
@@ -162,7 +163,7 @@ describe('chat streaming', () => {
 
 	// The first chunk announces the role and carries no text.
 	it('skips a role-only opening delta', async () => {
-		installFetch(async () => streamResponse(sse([delta(), delta('text'), '[DONE]'])));
+		installTransport(async () => streamResponse(sse([delta(), delta('text'), '[DONE]'])));
 		const {provider} = makeProvider();
 		const onToken = vi.fn();
 
@@ -171,28 +172,28 @@ describe('chat streaming', () => {
 	});
 
 	it('skips a chunk with no choices, such as a final usage report', async () => {
-		installFetch(async () => streamResponse(sse([delta('a'), {usage: {total_tokens: 9}, choices: []}, '[DONE]'])));
+		installTransport(async () => streamResponse(sse([delta('a'), {usage: {total_tokens: 9}, choices: []}, '[DONE]'])));
 		const {provider} = makeProvider();
 
 		expect(await provider.sendQuestion('q')).toBe('a');
 	});
 
 	it('treats [DONE] as the end of the stream, not as JSON', async () => {
-		installFetch(async () => streamResponse(sse([delta('a'), '[DONE]'])));
+		installTransport(async () => streamResponse(sse([delta('a'), '[DONE]'])));
 		const {provider} = makeProvider();
 
 		await expect(provider.sendQuestion('q')).resolves.toBe('a');
 	});
 
 	it('ignores anything after [DONE]', async () => {
-		installFetch(async () => streamResponse([...sse([delta('a'), '[DONE]']), 'data: not json\n\n']));
+		installTransport(async () => streamResponse([...sse([delta('a'), '[DONE]']), 'data: not json\n\n']));
 		const {provider} = makeProvider();
 
 		expect(await provider.sendQuestion('q')).toBe('a');
 	});
 
 	it('ignores SSE comments, event lines and blank lines', async () => {
-		installFetch(async () => streamResponse([
+		installTransport(async () => streamResponse([
 			': keep-alive\n\n',
 			'event: message\n',
 			`data: ${JSON.stringify(delta('a'))}\n\n`,
@@ -205,14 +206,14 @@ describe('chat streaming', () => {
 	});
 
 	it('accepts data lines with no space after the colon', async () => {
-		installFetch(async () => streamResponse([`data:${JSON.stringify(delta('a'))}\n\ndata:[DONE]\n\n`]));
+		installTransport(async () => streamResponse([`data:${JSON.stringify(delta('a'))}\n\ndata:[DONE]\n\n`]));
 		const {provider} = makeProvider();
 
 		expect(await provider.sendQuestion('q')).toBe('a');
 	});
 
 	it('reassembles events split across byte chunks', async () => {
-		installFetch(async () => streamResponse(sse([delta('hello'), delta(' world'), '[DONE]'], chunkEvery(5))));
+		installTransport(async () => streamResponse(sse([delta('hello'), delta(' world'), '[DONE]'], chunkEvery(5))));
 		const {provider} = makeProvider();
 
 		expect(await provider.sendQuestion('q')).toBe('hello world');
@@ -220,25 +221,25 @@ describe('chat streaming', () => {
 
 	// A server that never sends [DONE] still ends the answer when the body closes.
 	it('finishes cleanly when the stream closes without [DONE]', async () => {
-		installFetch(async () => streamResponse(sse([delta('a'), delta('b')])));
+		installTransport(async () => streamResponse(sse([delta('a'), delta('b')])));
 		const {provider} = makeProvider();
 
 		expect(await provider.sendQuestion('q')).toBe('ab');
 	});
 
 	it('passes an abort signal', async () => {
-		const spy = installFetch(async () => streamResponse(sse(['[DONE]'])));
+		const spy = installTransport(async () => streamResponse(sse(['[DONE]'])));
 		const {provider} = makeProvider();
 
 		await provider.sendQuestion('q');
 
-		expect((spy.mock.calls[0][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
+		expect((spy.mock.calls[0][1] as StreamRequest).signal).toBeInstanceOf(AbortSignal);
 	});
 
 	describe('failures', () => {
 		it('raises a data line that is not JSON', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => streamResponse(['data: {not json\n\n']));
+			installTransport(async () => streamResponse(['data: {not json\n\n']));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(/unexpected response/);
@@ -248,7 +249,7 @@ describe('chat streaming', () => {
 
 		it('raises an error object sent mid-stream', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => streamResponse(sse([delta('a'), {error: {message: 'model crashed'}}])));
+			installTransport(async () => streamResponse(sse([delta('a'), {error: {message: 'model crashed'}}])));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow('model crashed');
@@ -258,7 +259,7 @@ describe('chat streaming', () => {
 
 		it('raises a server error with its status and detail, and retries it', async () => {
 			vi.useFakeTimers();
-			const spy = installFetch(async () =>
+			const spy = installTransport(async () =>
 				errorResponse(500, JSON.stringify({error: {message: 'out of memory'}})),
 			);
 			const {provider} = makeProvider();
@@ -275,7 +276,7 @@ describe('chat streaming', () => {
 
 		it('reads a plain-text error body', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => errorResponse(500, 'plain failure'));
+			installTransport(async () => errorResponse(500, 'plain failure'));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toMatchObject({detail: 'plain failure'});
@@ -286,7 +287,7 @@ describe('chat streaming', () => {
 		// A bad request -- an over-long context, an unknown model -- fails the same way every
 		// time, so retrying only delays the message by two seconds.
 		it.each([400, 401, 404, 422])('does not retry a %s client error', async status => {
-			const spy = installFetch(async () => errorResponse(status, JSON.stringify({error: {message: 'nope'}})));
+			const spy = installTransport(async () => errorResponse(status, JSON.stringify({error: {message: 'nope'}})));
 			const {provider} = makeProvider();
 
 			await expect(provider.sendQuestion('q')).rejects.toBeInstanceOf(ProviderError);
@@ -296,7 +297,7 @@ describe('chat streaming', () => {
 		// Timeouts and rate limits are client-side statuses that do clear up on their own.
 		it.each([408, 429])('does retry a %s', async status => {
 			vi.useFakeTimers();
-			const spy = installFetch(async () => errorResponse(status, 'busy'));
+			const spy = installTransport(async () => errorResponse(status, 'busy'));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow();
@@ -475,7 +476,7 @@ describe('getModelList', () => {
 describe('conversation', () => {
 	it('shares the base history: follow-ups carry earlier turns', async () => {
 		let n = 0;
-		const spy = installFetch(async () => {
+		const spy = installTransport(async () => {
 			n++;
 			return streamResponse(sse([delta(`answer ${n}`), '[DONE]']));
 		});

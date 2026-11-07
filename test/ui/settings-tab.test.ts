@@ -2,8 +2,10 @@
 import '../setup/obsidian-dom';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
+	__openSettingTab,
 	__resetNotices,
 	__resetSettings,
+	__setApiVersion,
 	__setting,
 	ButtonComponent,
 	DropdownComponent,
@@ -14,6 +16,7 @@ import {
 	TextComponent,
 	ToggleComponent,
 } from '../stubs/obsidian';
+import type {SettingDefinitionGroup} from 'obsidian';
 import {SettingTab} from '../../src/classes/settings-tab';
 import {DEFAULT_PROVIDER_CONFIGS, defaultSettings} from '../../src/defaults';
 import {CSS_CLASS_PREFIX} from '../../src/constants';
@@ -114,6 +117,10 @@ const settle = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 /** The newest row of that name — a re-render leaves the old rows in the stub's registry. */
 const control = <T>(name: string, kind: new (...args: never[]) => T): T =>
 	__setting(name)?.component(kind) as T;
+
+/** The embedding model's status line: "Installed", "Not available", "Checking…" and so on. */
+const embeddingStatus = () =>
+	__setting('Embedding Model')?.descEl.querySelector(`.${CSS_CLASS_PREFIX}settings-status`)?.textContent;
 
 beforeEach(() => {
 	__resetSettings();
@@ -484,8 +491,7 @@ describe('server URL', () => {
 });
 
 describe('embedding server URL', () => {
-	const embeddingServerContainer = () =>
-		__setting('Embedding server URL')?.settingEl.parentElement as HTMLElement;
+	const embeddingServerContainer = () => __setting('Embedding server URL')?.settingEl as HTMLElement;
 
 	// llama-server serves one model per process, so a dedicated embedding model runs as a second
 	// server on its own port.
@@ -942,9 +948,8 @@ describe('dedicated embedding model', () => {
 	const dropdown = () => control('Embedding Model', DropdownComponent);
 	const status = () =>
 		__setting('Embedding Model')?.descEl.querySelector(`.${CSS_CLASS_PREFIX}settings-status`) as HTMLElement;
-	// The picker lives in an unclassed wrapper div whose display is toggled; find it as the
-	// parent of the Embedding Model row rather than by selector, which would also match rows.
-	const container = () => __setting('Embedding Model')?.settingEl.parentElement as HTMLElement;
+	// The picker's row, which is shown and hidden with the toggle.
+	const container = () => __setting('Embedding Model')?.settingEl as HTMLElement;
 	// The details of a missing model, under the status in the description.
 	const callout = () => container().querySelector(`.${CSS_CLASS_PREFIX}settings-hint`) as HTMLElement | null;
 	/** The hint's lines of explanation, without its command. */
@@ -1530,5 +1535,193 @@ describe('dedicated embedding model', () => {
 				expect(dropdown().getValue()).toBe(NOMIC_ID);
 			});
 		});
+	});
+});
+
+// Obsidian 1.13+ draws a tab from getSettingDefinitions(), which is also what puts its settings in
+// Obsidian's settings search. The rows are the ones display() draws on older versions, so the rest
+// of this file covers them through display(); these cover what differs.
+describe('on Obsidian 1.13+', () => {
+	beforeEach(() => {
+		__setApiVersion('1.13.0');
+	});
+
+	/** As Obsidian does: store the definitions when the tab is added, then draw them on opening. */
+	async function open(options: SetupOptions = {}) {
+		const harness = setup(options);
+		harness.tab.update();
+		__openSettingTab(harness.tab);
+		await settle();
+		return harness;
+	}
+
+	const groups = (tab: SettingTab) => tab.settingItems as SettingDefinitionGroup[];
+	const status = (tab: SettingTab) =>
+		tab.containerEl.querySelector(`.setting-item-heading .${CSS_CLASS_PREFIX}connection-status`) as HTMLElement | null;
+	const hints = (name: string) => __setting(name)?.settingEl.querySelectorAll(`.${CSS_CLASS_PREFIX}settings-hint`).length;
+
+	it('defines each step as a group of its settings, the support banner first', async () => {
+		const {tab} = await open();
+
+		expect(groups(tab).map(group => [group.heading, group.items?.map(item => item.name)])).toEqual([
+			[undefined, ['Support Mini-RAG']],
+			['1. Choose a provider', ['Provider']],
+			['2. Connect to Ollama', ['Ollama URL', 'Chat Model', 'Use a dedicated embedding model', 'Embedding Model']],
+			['3. Tune your chats', ['Temperature', 'Retrieved chunks (top-K)', 'Enable context-free chats', 'Cache embeddings on disk']],
+		]);
+	});
+
+	// Search matches the name and description, so each definition carries them.
+	it('describes its settings for search', async () => {
+		const {tab} = await open();
+		const temperature = groups(tab)[3].items?.[0] as {desc?: string};
+
+		expect(temperature.desc).toBe('Higher = more creative responses; lower = more focused and consistent');
+	});
+
+	// Definitions are also read just to index search, so asking for them must not call the server.
+	it('defines its settings without asking the server for anything', () => {
+		const {tab, getModelList} = setup();
+
+		tab.update();
+
+		expect(tab.settingItems.length).toBeGreaterThan(0);
+		expect(getModelList).not.toHaveBeenCalled();
+	});
+
+	it('draws every row with its controls, then loads the model list once', async () => {
+		const {tab, getModelList} = await open({settings: {temperature: 0.45}});
+		const display = vi.spyOn(tab, 'display');
+
+		expect(control('Temperature', SliderComponent).getValue()).toBe(0.45);
+		expect(control('Chat Model', DropdownComponent).getValue()).toBe('');
+		expect(getModelList).toHaveBeenCalledTimes(1);
+		expect(display).not.toHaveBeenCalled();
+	});
+
+	it('shows the connection status in step 2\'s heading', async () => {
+		const {tab} = await open();
+
+		expect(status(tab)?.textContent).toBe('✓ Connected');
+		expect(groups(tab)[2].heading).toBe('2. Connect to Ollama');
+	});
+
+	it('redraws for the new provider on a switch, with update()', async () => {
+		const {tab} = await open();
+		const update = vi.spyOn(tab, 'update');
+		const display = vi.spyOn(tab, 'display');
+
+		await control('Provider', DropdownComponent).trigger('llamacpp');
+		await settle();
+
+		expect(update).toHaveBeenCalled();
+		expect(display).not.toHaveBeenCalled();
+		expect(groups(tab)[2].heading).toBe('2. Connect to llama.cpp');
+		expect(tab.containerEl.textContent).toContain('llama.cpp URL');
+		expect(status(tab)?.textContent).toBe('✓ Connected');
+	});
+
+	it('shows the embedding rows only while the dedicated model is on', async () => {
+		await open({provider: 'llamacpp', dedicated: false});
+		const shown = (name: string) => __setting(name)?.settingEl.isShown();
+		expect([shown('Embedding server URL'), shown('Embedding Model')]).toEqual([false, false]);
+
+		await control('Use a dedicated embedding model', ToggleComponent).trigger(true);
+		expect([shown('Embedding server URL'), shown('Embedding Model')]).toEqual([true, true]);
+
+		await control('Use a dedicated embedding model', ToggleComponent).trigger(false);
+		expect([shown('Embedding server URL'), shown('Embedding Model')]).toEqual([false, false]);
+	});
+
+	// A redraw reuses each row's element, and the hints are added to it rather than to its controls.
+	it('checks the models again when its window comes back into focus', async () => {
+		const {getModelList} = await open({models: ['llama3:8b'], dedicated: true, embeddingModel: 'nomic-embed-text'});
+		getModelList.mockResolvedValue(['llama3:8b', 'nomic-embed-text:latest']);
+
+		window.dispatchEvent(new Event('focus'));
+		await settle();
+
+		expect(embeddingStatus()).toBe('Installed');
+	});
+
+	it('leaves one hint per row after a redraw, not one per draw', async () => {
+		const {tab} = await open({provider: 'llamacpp', dedicated: true, embeddingModel: NOMIC_ID});
+		expect([hints('Chat Model'), hints('Embedding Model')]).toEqual([1, 1]);
+
+		tab.update();
+		await settle();
+
+		expect([hints('Chat Model'), hints('Embedding Model')]).toEqual([1, 1]);
+	});
+});
+
+// Before 1.13, Obsidian never asks for definitions and draws the tab with display() instead.
+it('defines nothing before Obsidian 1.13', () => {
+	const {tab} = setup();
+
+	expect(tab.getSettingDefinitions()).toEqual([]);
+});
+
+// Obsidian 1.13+ can keep the settings open in a window of their own, and bringing that window back
+// to the front draws nothing new. So a model installed meanwhile, say from the chat panel's setup
+// steps, would go on showing as missing: the tab checks again itself.
+describe('checking the models again', () => {
+	const missing = {models: ['llama3:8b'], dedicated: true, embeddingModel: 'nomic-embed-text'};
+	const installed = ['llama3:8b', 'nomic-embed-text:latest'];
+
+	it('checks again when its window comes back into focus', async () => {
+		const {getModelList} = await render(missing);
+		expect(embeddingStatus()).toBe('Not available');
+		getModelList.mockResolvedValue(installed);
+
+		window.dispatchEvent(new Event('focus'));
+		await settle();
+
+		expect(embeddingStatus()).toBe('Installed');
+	});
+
+	it('listens in one window at a time, however often it is drawn', async () => {
+		const {tab, getModelList} = await render(missing);
+		tab.display();
+		await settle();
+		getModelList.mockClear();
+
+		window.dispatchEvent(new Event('focus'));
+		await settle();
+
+		expect(getModelList).toHaveBeenCalledTimes(1);
+	});
+
+	it('stops checking on focus once hidden', async () => {
+		const {tab, getModelList} = await render(missing);
+		tab.hide();
+		getModelList.mockClear();
+
+		window.dispatchEvent(new Event('focus'));
+		await settle();
+
+		expect(getModelList).not.toHaveBeenCalled();
+	});
+
+	// From the plugin, when the chat panel finds that a missing model now works.
+	it('checks again when told, while it is showing', async () => {
+		const {tab, getModelList} = await render(missing);
+		getModelList.mockResolvedValue(installed);
+
+		tab.recheckModels();
+		await settle();
+
+		expect(embeddingStatus()).toBe('Installed');
+	});
+
+	it('asks nothing when told while hidden', async () => {
+		const {tab, getModelList} = await render(missing);
+		tab.hide();
+		getModelList.mockClear();
+
+		tab.recheckModels();
+		await settle();
+
+		expect(getModelList).not.toHaveBeenCalled();
 	});
 });

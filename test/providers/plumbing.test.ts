@@ -14,7 +14,8 @@ import {OllamaProvider} from '../../src/providers/ollama-provider';
 import {LlamaCppProvider} from '../../src/providers/llamacpp-provider';
 import {defaultSettings} from '../../src/defaults';
 import {ProviderId} from '../../src/types';
-import {errorResponse, installFetch, nullBodyResponse, streamResponse} from '../helpers/stream';
+import {StreamRequest} from '../../src/providers/stream-transport';
+import {errorResponse, installTransport, streamResponse} from '../helpers/stream';
 
 beforeEach(() => {
 	__resetRequestUrl();
@@ -212,7 +213,7 @@ describe('getJson / postJson', () => {
 
 describe('streamLines', () => {
 	const collect = async (chunks: string[]): Promise<string[]> => {
-		installFetch(async () => streamResponse(chunks));
+		installTransport(async () => streamResponse(chunks));
 		const lines: string[] = [];
 		await streamLines('http://x', {}, new AbortController().signal, l => lines.push(l), () => new Error('http'));
 		return lines;
@@ -243,28 +244,28 @@ describe('streamLines', () => {
 	});
 
 	it('sends the body as JSON with the content type', async () => {
-		const spy = installFetch(async () => streamResponse([]));
+		const spy = installTransport(async () => streamResponse([]));
 
 		await streamLines('http://x', {a: 1}, new AbortController().signal, () => {}, () => new Error('http'));
 
-		const init = spy.mock.calls[0][1] as RequestInit;
+		const init = spy.mock.calls[0][1] as StreamRequest;
 		expect(JSON.parse(String(init.body))).toEqual({a: 1});
 		expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
 	});
 
 	it('merges extra headers', async () => {
-		const spy = installFetch(async () => streamResponse([]));
+		const spy = installTransport(async () => streamResponse([]));
 
 		await streamLines(
 			'http://x', {}, new AbortController().signal, () => {}, () => new Error('http'),
 			{Authorization: 'Bearer t'},
 		);
 
-		expect((spy.mock.calls[0][1] as RequestInit).headers).toMatchObject({Authorization: 'Bearer t'});
+		expect((spy.mock.calls[0][1] as StreamRequest).headers).toMatchObject({Authorization: 'Bearer t'});
 	});
 
 	it('delegates a non-ok response to onHttpError with the status and body', async () => {
-		installFetch(async () => errorResponse(503, 'overloaded'));
+		installTransport(async () => errorResponse(503, 'overloaded'));
 		const onHttpError = vi.fn((status: number, body: string) => new Error(`${status}:${body}`));
 
 		await expect(
@@ -273,16 +274,8 @@ describe('streamLines', () => {
 		expect(onHttpError).toHaveBeenCalledWith(503, 'overloaded');
 	});
 
-	it('raises a typed error for a null body', async () => {
-		installFetch(async () => nullBodyResponse());
-
-		await expect(
-			streamLines('http://x', {}, new AbortController().signal, () => {}, () => new Error('http')),
-		).rejects.toThrow('The server returned an empty response body.');
-	});
-
 	it('propagates an error thrown by the line handler', async () => {
-		installFetch(async () => streamResponse(['a\nb\n']));
+		installTransport(async () => streamResponse(['a\nb\n']));
 
 		await expect(
 			streamLines('http://x', {}, new AbortController().signal, () => {

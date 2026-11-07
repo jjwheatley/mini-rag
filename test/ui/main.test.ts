@@ -3,6 +3,7 @@ import '../setup/obsidian-dom';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {__resetNotices, notices, TFile as StubTFile, TFolder as StubTFolder} from '../stubs/obsidian';
 import {SupportModal} from '../../src/classes/ui/support-modal';
+import {SettingTab} from '../../src/classes/settings-tab';
 import MiniRagPlugin from '../../main';
 import {ChatWindow} from '../../src/classes/chat-window';
 import {OllamaProvider} from '../../src/providers/ollama-provider';
@@ -570,6 +571,19 @@ describe('saving chats', () => {
 
 			expect(notices).toContain('Mini-RAG: failed to save chat. read-only vault');
 		});
+	});
+});
+
+// Settings may be open in a window of their own; when a missing model turns up, they check again.
+describe('notifyModelsChanged', () => {
+	it('asks the settings tab to check the models again', async () => {
+		const {plugin} = makePlugin();
+		await plugin.onload();
+		const recheck = vi.spyOn(SettingTab.prototype, 'recheckModels').mockImplementation(() => {});
+
+		plugin.notifyModelsChanged();
+
+		expect(recheck).toHaveBeenCalledTimes(1);
 	});
 });
 

@@ -49,4 +49,4 @@ If a change is agreed:
 - Keep Mini-RAG local: it only talks to the servers the user configures, and changes that send data anywhere else won't be accepted.
 - Leave version numbers, `manifest.json` and `versions.json` alone; releases are done by the maintainer.
 
-By sending a pull request, you agree that your contribution is licensed under the project's [MIT License](../LICENSE).
+By sending a pull request, you agree that your contribution is licensed under the project's [MIT License](LICENSE).

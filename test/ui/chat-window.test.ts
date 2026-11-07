@@ -82,6 +82,7 @@ function setup(options: SetupOptions = {}) {
 		app: {},
 		saveChat: vi.fn(async () => {}),
 		saveSettings: vi.fn(async () => {}),
+		notifyModelsChanged: vi.fn(),
 		fundingLinks: () => [],
 		getModelUserFriendlyName: () => 'Llama3',
 		// As main.ts builds them.
@@ -1019,6 +1020,28 @@ describe('showIndexError', () => {
 			expect(context.buildIndex).toHaveBeenCalled();
 			expect(view.inputWrapper.classList.contains('hidden')).toBe(false);
 			expect(view.chatContainer.querySelector(`.${CSS_CLASS_PREFIX}index-error`)).toBeNull();
+		});
+
+		// Whatever was missing is there now, so settings already open should stop saying otherwise.
+		it('tells the settings the models changed when the rebuild works', async () => {
+			const {view} = await open();
+			view.showIndexError('m');
+
+			click(refresh(view));
+			await flush();
+
+			expect(view.plugin.notifyModelsChanged).toHaveBeenCalledTimes(1);
+		});
+
+		it('tells the settings nothing when the rebuild fails', async () => {
+			const {view, context} = await open();
+			view.showIndexError('m');
+			context.buildIndex.mockRejectedValueOnce(new EmbeddingsUnsupportedError('m', 'ollama'));
+
+			click(refresh(view));
+			await flush();
+
+			expect(view.plugin.notifyModelsChanged).not.toHaveBeenCalled();
 		});
 
 		it('shows the panel again when the rebuild fails', async () => {

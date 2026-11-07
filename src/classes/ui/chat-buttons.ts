@@ -42,14 +42,14 @@ export class ChatButtons {
 	}
 
 	private addButtonAreas(container: Element) {
-		const parent = container.createEl("div", {cls: CSS_CLASS_PREFIX + "button-area"});
-		const left = parent.createEl("div", {cls: CSS_CLASS_PREFIX + "button-area-left"});
-		const right = parent.createEl("div", {cls: CSS_CLASS_PREFIX + "button-area-right"});
+		const parent = container.createDiv({cls: CSS_CLASS_PREFIX + "button-area"});
+		const left = parent.createDiv({cls: CSS_CLASS_PREFIX + "button-area-left"});
+		const right = parent.createDiv({cls: CSS_CLASS_PREFIX + "button-area-right"});
 		return [left, right];
 	}
 
 	private addSaveControls(parentEl: HTMLDivElement) {
-		const group = parentEl.createEl("div", {cls: CSS_CLASS_PREFIX + "save-button-group"});
+		const group = parentEl.createDiv({cls: CSS_CLASS_PREFIX + "save-button-group"});
 
 		this.saveButton = createIconButton(group, "save", "Save");
 		this.chatWindow.registerDomEvent(this.saveButton, "click", async () => {

@@ -286,7 +286,7 @@ export class ChatWindow extends ItemView {
 	}
 
 	initInputArea() {
-		this.inputWrapper = this.chatContainer.createEl("div", {cls: CSS_CLASS_PREFIX + "input-area"});
+		this.inputWrapper = this.chatContainer.createDiv({cls: CSS_CLASS_PREFIX + "input-area"});
 		this.inputWrapper.createEl('p', { text: 'Ask a question…', cls: CSS_CLASS_PREFIX + "input-label" });
 		this.input = new ChatInput(this);
 		this.input.init();
@@ -307,15 +307,15 @@ export class ChatWindow extends ItemView {
 		this.conversationWindow.htmlElement.classList.add("hidden");
 		this.inputWrapper.classList.add("hidden");
 
-		this.indexErrorEl = this.chatContainer.createEl('div', {cls: CSS_CLASS_PREFIX + 'index-error'});
+		this.indexErrorEl = this.chatContainer.createDiv({cls: CSS_CLASS_PREFIX + 'index-error'});
 		// All DOM listeners for the error panel are scoped to this child component so they
 		// are unregistered together when hideIndexError removes the panel.
 		this.indexErrorComponent = this.addChild(new Component());
 
-		const header = this.indexErrorEl.createEl('div', {cls: CSS_CLASS_PREFIX + 'brand-header'});
-		const iconEl = header.createEl('span', {cls: CSS_CLASS_PREFIX + 'brand-icon'});
+		const header = this.indexErrorEl.createDiv({cls: CSS_CLASS_PREFIX + 'brand-header'});
+		const iconEl = header.createSpan({cls: CSS_CLASS_PREFIX + 'brand-icon'});
 		setIcon(iconEl, ICON_NAME);
-		header.createEl('span', {text: APP_NAME});
+		header.createSpan({text: APP_NAME});
 
 		if (modelName === '') {
 			this.renderChooseModelHelp(this.indexErrorEl);
@@ -362,7 +362,7 @@ export class ChatWindow extends ItemView {
 		if (command) {
 			const runStep = steps.createEl('li');
 			runStep.createSpan({text: `Run this command${hint.commandNote ? ` (${hint.commandNote})` : ''}:`});
-			const cmdRow = runStep.createEl('div', {cls: CSS_CLASS_PREFIX + 'copy-command'});
+			const cmdRow = runStep.createDiv({cls: CSS_CLASS_PREFIX + 'copy-command'});
 			cmdRow.createEl('code', {text: command});
 			const copyBtn = cmdRow.createEl('button', {cls: 'clickable-icon ' + CSS_CLASS_PREFIX + 'icon-button ' + CSS_CLASS_PREFIX + 'copy-button'});
 			setIcon(copyBtn, 'copy');
@@ -401,6 +401,7 @@ export class ChatWindow extends ItemView {
 		this.setAwaitingResponse(true);
 		try {
 			await this.plugin.context.buildIndex(this.plugin.ai);
+			this.plugin.notifyModelsChanged();
 		} catch (error) {
 			// The same decision as any other build: a panel, a fallback, or a notice.
 			handleIndexBuildError(error, this.plugin.indexBuildErrorDeps(this));

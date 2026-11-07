@@ -26,21 +26,21 @@ export class ChatConversationWindow {
 		this.plugin = plugin;
 		this.renderComponent = renderComponent;
 		this.convoComponent = renderComponent.addChild(new Component());
-		this.headerEl = parent.createEl("div", {cls: CSS_CLASS_PREFIX + 'chat-header'});
-		this.htmlElement = parent.createEl("div", {cls: CSS_CLASS_PREFIX + 'conversation'});
+		this.headerEl = parent.createDiv({cls: CSS_CLASS_PREFIX + 'chat-header'});
+		this.htmlElement = parent.createDiv({cls: CSS_CLASS_PREFIX + 'conversation'});
 		this.addConvoHeading();
 	}
 
 	addConvoHeading(chatSubject?: string) {
 		this.headerEl.empty();
 
-		const header = this.headerEl.createEl("div", {cls: CSS_CLASS_PREFIX + 'brand-header'});
-		const iconEl = header.createEl('span', {cls: CSS_CLASS_PREFIX + 'brand-icon'});
+		const header = this.headerEl.createDiv({cls: CSS_CLASS_PREFIX + 'brand-header'});
+		const iconEl = header.createSpan({cls: CSS_CLASS_PREFIX + 'brand-icon'});
 		setIcon(iconEl, ICON_NAME);
-		header.createEl('span', {text: APP_NAME});
+		header.createSpan({text: APP_NAME});
 		this.addSupportButton(header);
 
-		const modelRow = this.headerEl.createEl('div', {cls: CSS_CLASS_PREFIX + 'model-row'});
+		const modelRow = this.headerEl.createDiv({cls: CSS_CLASS_PREFIX + 'model-row'});
 		this.modelNameEl = modelRow.createEl('h3', {
 			text: 'Chat with ' + this.plugin.getModelUserFriendlyName(),
 		});
@@ -53,7 +53,7 @@ export class ChatConversationWindow {
 		chevron.setAttr('aria-label', 'Change model');
 		chevron.addEventListener('click', () => void this.showModelMenu(chevron));
 
-		this.headerEl.createEl("div", {text: chatSubject ? 'Context: ' + chatSubject : 'Context-Free'});
+		this.headerEl.createDiv({text: chatSubject ? 'Context: ' + chatSubject : 'Context-Free'});
 
 		void this.fetchModels();
 	}
@@ -161,13 +161,13 @@ export class ChatConversationWindow {
 	}
 
 	addModelSwitchDivider() {
-		const el = this.htmlElement.createEl('div', {cls: CSS_CLASS_PREFIX + 'model-switch-divider'});
-		el.createEl('span', {cls: CSS_CLASS_PREFIX + 'model-switch-line'});
-		el.createEl('span', {
+		const el = this.htmlElement.createDiv({cls: CSS_CLASS_PREFIX + 'model-switch-divider'});
+		el.createSpan({cls: CSS_CLASS_PREFIX + 'model-switch-line'});
+		el.createSpan({
 			text: 'switched to ' + this.plugin.getModelUserFriendlyName(),
 			cls: CSS_CLASS_PREFIX + 'model-switch-label',
 		});
-		el.createEl('span', {cls: CSS_CLASS_PREFIX + 'model-switch-line'});
+		el.createSpan({cls: CSS_CLASS_PREFIX + 'model-switch-line'});
 	}
 
 	/**
@@ -176,7 +176,7 @@ export class ChatConversationWindow {
 	 * since that is the answer it describes.
 	 */
 	addContextNote(text: string): HTMLElement {
-		const note = this.htmlElement.createEl('div', {text, cls: CSS_CLASS_PREFIX + 'context-note'});
+		const note = this.htmlElement.createDiv({text, cls: CSS_CLASS_PREFIX + 'context-note'});
 		const streaming = this.htmlElement.querySelector(`.${CSS_CLASS_PREFIX}convo-box-streaming`);
 		streaming?.before(note);
 		return note;
@@ -230,7 +230,7 @@ export class ChatConversationWindow {
 			classes.push(CSS_CLASS_PREFIX + "convo-box-streaming");
 		}
 
-		const element = this.htmlElement.createEl("div", {cls: classes.join(" ")});
+		const element = this.htmlElement.createDiv({cls: classes.join(" ")});
 		this.convoComponent.registerDomEvent(element, "click", () => {
 			try {
 				clipboard.writeText(getText());

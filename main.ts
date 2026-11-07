@@ -22,6 +22,7 @@ export default class MiniRagPlugin extends Plugin {
 	context: Contextualizer;
 	settings: PluginSettings;
 	fileManager: FileManager;
+	settingsTab: SettingTab;
 	contextLoadSeq = 0;
 
 	async onload() {
@@ -29,7 +30,8 @@ export default class MiniRagPlugin extends Plugin {
 		this.loadFileManager();
 		this.loadContextualizer();
 		this.loadAI();
-		this.addSettingTab(new SettingTab(this.app, this));
+		this.settingsTab = new SettingTab(this.app, this);
+		this.addSettingTab(this.settingsTab);
 		this.registerView(VIEW_TYPE, (leaf) => new ChatWindow(leaf, this));
 		this.loadMenu();
 		this.addCommand({
@@ -146,6 +148,11 @@ export default class MiniRagPlugin extends Plugin {
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
 			if (leaf.view instanceof ChatWindow) leaf.view.modelChanged();
 		}
+	}
+
+	/** A model that was missing now works. Settings open meanwhile should stop saying it is missing. */
+	notifyModelsChanged() {
+		this.settingsTab.recheckModels();
 	}
 
 	/**

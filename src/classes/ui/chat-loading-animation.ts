@@ -4,7 +4,7 @@ export class ChatLoadingAnimation {
 	htmlElement: HTMLSpanElement;
 
 	constructor(parent: Element) {
-		this.htmlElement = parent.createEl("span", {cls: CSS_CLASS_PREFIX + "loader hidden"});
+		this.htmlElement = parent.createSpan({cls: CSS_CLASS_PREFIX + "loader hidden"});
 	}
 
 	show(){

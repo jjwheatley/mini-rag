@@ -85,8 +85,21 @@ export function installObsidianDomHelpers(): void {
 	define(nodeProto, 'createSpan', function (this: Node, info?: DomElementInfo | string) {
 		return createChild(this, 'span', info);
 	});
+	// The window the node belongs to: a popout window's own, or the main one.
+	Object.defineProperty(nodeProto, 'win', {
+		get(this: Node) {
+			return this.ownerDocument?.defaultView ?? window;
+		},
+		configurable: true,
+	});
 	define(nodeProto, 'appendText', function (this: Node, text: string) {
 		this.appendChild((this.ownerDocument ?? document).createTextNode(text));
+	});
+	// A global, not a Node method: a new fragment, handed to the callback (if any) to fill.
+	define(window as unknown as Record<string, unknown>, 'createFragment', (callback?: (fragment: DocumentFragment) => void) => {
+		const fragment = document.createDocumentFragment();
+		callback?.(fragment);
+		return fragment;
 	});
 
 	define(elProto, 'empty', function (this: Element) {
@@ -136,6 +149,10 @@ export function installObsidianDomHelpers(): void {
 	});
 	define(elProto, 'isShown', function (this: HTMLElement) {
 		return !this.classList.contains('is-hidden');
+	});
+	define(elProto, 'toggle', function (this: HTMLElement, show: boolean) {
+		if (show) this.show();
+		else this.hide();
 	});
 }
 

@@ -20,7 +20,7 @@ export const SUPPORT_TEXT = 'Hi,\nMini-RAG is a one-man project. If you like wha
  * The settings banner and the chat panel's support menu both use it, so they read as one thing.
  */
 export function supportTitle(): DocumentFragment {
-	const title = document.createDocumentFragment();
+	const title = createFragment();
 	title.appendText(SUPPORT_TITLE);
 	const heart = title.createSpan({cls: CSS_CLASS_PREFIX + 'support-heart'});
 	setIcon(heart, 'heart');
@@ -61,10 +61,9 @@ export function addFundingButtons(setting: Setting, links: FundingLink[], afterO
 	return setting;
 }
 
-/** The settings tab's support row: what support is for, and a button for each link. None without links. */
-export function addSupportSetting(container: HTMLElement, links: FundingLink[]): void {
-	if (links.length === 0) return;
-	const setting = new Setting(container)
+/** Makes `setting` the settings tab's support row: what support is for, and a button for each link. */
+export function configureSupportSetting(setting: Setting, links: FundingLink[]): void {
+	setting
 		.setName(supportTitle())
 		.setDesc(SUPPORT_TEXT)
 		.setClass(CSS_CLASS_PREFIX + 'support');

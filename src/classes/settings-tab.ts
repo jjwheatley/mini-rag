@@ -1,4 +1,14 @@
-import {App, DropdownComponent, Notice, PluginSettingTab, Setting, setIcon} from "obsidian";
+import {
+	App,
+	DropdownComponent,
+	Notice,
+	PluginSettingTab,
+	requireApiVersion,
+	Setting,
+	SettingDefinitionItem,
+	SettingGroup,
+	setIcon,
+} from "obsidian";
 import MiniRagPlugin from "../../main";
 import {DEFAULT_PROVIDER_CONFIGS} from "../defaults";
 import {activeProviderConfig, activeProviderId, trimSlash} from "../settings";
@@ -6,7 +16,28 @@ import {ProviderUnreachableError} from "../providers/errors";
 import {CSS_CLASS_PREFIX} from "../constants";
 import {listProviders} from "../providers/factory";
 import {ProviderId} from "../types";
-import {addSupportSetting} from "../support";
+import {configureSupportSetting, SUPPORT_TEXT, SUPPORT_TITLE} from "../support";
+
+/**
+ * One setting row. Obsidian 1.13+ draws it from getSettingDefinitions(), which also puts it in the
+ * settings search; display() draws it on older versions. Either way the row arrives named and
+ * described, and render() adds the rest.
+ */
+interface Row {
+	name: string;
+	desc?: string;
+	render(setting: Setting): void;
+	/** For a row shown only some of the time; refreshVisibility() checks it again. */
+	visible?: () => boolean;
+}
+
+/** A step of the setup: its rows, under a heading. The support banner above the steps has none. */
+interface Section {
+	heading?: string;
+	/** Step 2 says beside its heading whether the server answered. */
+	connectionStatus?: boolean;
+	rows: Row[];
+}
 
 /** Splits a command into its words, each flag joined to the value that follows it. */
 function commandGroups(command: string): string[] {
@@ -47,7 +78,13 @@ export class SettingTab extends PluginSettingTab {
 	private urlDebounceTimer: number | null = null;
 	private embeddingUrlDebounceTimer: number | null = null;
 	private embeddingDropdown: DropdownComponent | null = null;
-	private embeddingDropdownContainerEl: HTMLElement | null = null;
+	/** Rows display() drew that are shown only some of the time, for refreshVisibility(). */
+	private conditionalRows: {row: Row; setting: Setting}[] = [];
+	/** Whether the tab is drawn and showing, from the end of a draw until hide(). */
+	private showing = false;
+	/** The window the tab is drawn in, while it listens there for focus. */
+	private focusWindow: Window | null = null;
+	private readonly onWindowFocus = () => this.recheckModels();
 	private embeddingStatusEl: HTMLElement | null = null;
 	/** The Embedding Model row, across whose bottom a missing model's details go. */
 	private embeddingSettingEl: HTMLElement | null = null;
@@ -86,8 +123,8 @@ export class SettingTab extends PluginSettingTab {
 
 	// --- Provider and server -----------------------------------------------------------------
 
-	private addHeading(container: HTMLElement, name: string): Setting {
-		return new Setting(container).setName(name).setHeading();
+	private createConnectionStatus(parent: HTMLElement | DocumentFragment): HTMLElement {
+		return parent.createSpan({cls: CSS_CLASS_PREFIX + 'connection-status'});
 	}
 
 	/**
@@ -102,104 +139,116 @@ export class SettingTab extends PluginSettingTab {
 		el.classList.toggle('is-disconnected', state === 'disconnected');
 	}
 
-	addProviderSelector(container: HTMLElement) {
-		new Setting(container)
-			.setName('Provider')
-			.setDesc('Which local server Mini-RAG talks to. URLs and model choices are remembered for each provider.')
-			.addDropdown(dropdown => {
-				for (const {id, displayName} of listProviders()) {
-					dropdown.addOption(id, displayName);
-				}
-				dropdown.setValue(activeProviderId(this.plugin.settings));
-				dropdown.onChange(async (value) => {
-					if (value === this.plugin.settings.provider) return;
-					this.plugin.settings.provider = value as ProviderId;
-					await this.plugin.saveSettings();
-					// The old provider may be mid-answer. Its replacement also starts a fresh
-					// conversation, since the new backend knows nothing of the old one's history.
-					this.plugin.ai.abort();
-					this.plugin.loadAI();
-					this.display();
-					this.plugin.notifyChatModelChanged();
+	private providerRow(): Row {
+		return {
+			name: 'Provider',
+			desc: 'Which local server Mini-RAG talks to. URLs and model choices are remembered for each provider.',
+			render: setting => {
+				setting.addDropdown(dropdown => {
+					for (const {id, displayName} of listProviders()) {
+						dropdown.addOption(id, displayName);
+					}
+					dropdown.setValue(activeProviderId(this.plugin.settings));
+					dropdown.onChange(async (value) => {
+						if (value === this.plugin.settings.provider) return;
+						this.plugin.settings.provider = value as ProviderId;
+						await this.plugin.saveSettings();
+						// The old provider may be mid-answer. Its replacement also starts a fresh
+						// conversation, since the new backend knows nothing of the old one's history.
+						this.plugin.ai.abort();
+						this.plugin.loadAI();
+						this.redraw();
+						this.plugin.notifyChatModelChanged();
+					});
 				});
-			});
+			},
+		};
 	}
 
-	addServerUrl(container: HTMLElement) {
-		new Setting(container)
-			.setName(`${this.providerName} URL`)
-			.setDesc('The local address of the server Mini-RAG chats with')
-			.addText(text => text
-				.setPlaceholder(this.configDefaults.url)
-				.setValue(this.config.url)
-				.onChange(async (value) => {
-					this.config.url = value.trim() || this.configDefaults.url;
-					text.setValue(this.config.url);
-					await this.plugin.saveSettings();
-					// The command to start a model names this URL's port.
-					this.updateChatModelHint();
-					if (this.urlDebounceTimer !== null) window.clearTimeout(this.urlDebounceTimer);
-					this.urlDebounceTimer = window.setTimeout(() => {
-						this.urlDebounceTimer = null;
-						void this.refreshModelList();
-					}, 400);
-				}));
+	private serverUrlRow(): Row {
+		return {
+			name: `${this.providerName} URL`,
+			desc: 'The local address of the server Mini-RAG chats with',
+			render: setting => {
+				setting.addText(text => text
+					.setPlaceholder(this.configDefaults.url)
+					.setValue(this.config.url)
+					.onChange(async (value) => {
+						this.config.url = value.trim() || this.configDefaults.url;
+						text.setValue(this.config.url);
+						await this.plugin.saveSettings();
+						// The command to start a model names this URL's port.
+						this.updateChatModelHint();
+						if (this.urlDebounceTimer !== null) window.clearTimeout(this.urlDebounceTimer);
+						this.urlDebounceTimer = window.setTimeout(() => {
+							this.urlDebounceTimer = null;
+							void this.refreshModelList();
+						}, 400);
+					}));
+			},
+		};
 	}
 
 	/**
 	 * Only for providers that serve one model per process, where the dedicated embedding model needs
 	 * a second server. Shown with that model, since it is where that model runs.
 	 */
-	addEmbeddingServerUrl(container: HTMLElement) {
-		if (!this.plugin.ai.capabilities.separateEmbeddingEndpoint) return;
-
-		new Setting(container)
-			.setName('Embedding server URL')
-			.setDesc('The second server, running your embedding model. Its model is listed below.')
-			.addText(text => text
-				.setPlaceholder(this.configDefaults.embeddingUrl)
-				.setValue(this.config.embeddingUrl)
-				.onChange(async (value) => {
-					// Like the main URL, a cleared field falls back to the default: saving a blank
-					// would leave the placeholder looking like a value that is not there.
-					this.config.embeddingUrl = value.trim() || this.configDefaults.embeddingUrl;
-					text.setValue(this.config.embeddingUrl);
-					await this.plugin.saveSettings();
-					// The embedding picker lists what this server runs, so ask the new address.
-					if (this.embeddingUrlDebounceTimer !== null) window.clearTimeout(this.embeddingUrlDebounceTimer);
-					this.embeddingUrlDebounceTimer = window.setTimeout(() => {
-						this.embeddingUrlDebounceTimer = null;
-						void this.refreshEmbeddingOptions(this.installedModels);
-					}, 400);
-				}));
+	private embeddingServerUrlRow(): Row {
+		return {
+			name: 'Embedding server URL',
+			desc: 'The second server, running your embedding model. Its model is listed below.',
+			visible: () => this.config.dedicatedEmbeddingEnabled,
+			render: setting => {
+				setting.addText(text => text
+					.setPlaceholder(this.configDefaults.embeddingUrl)
+					.setValue(this.config.embeddingUrl)
+					.onChange(async (value) => {
+						// Like the main URL, a cleared field falls back to the default: saving a blank
+						// would leave the placeholder looking like a value that is not there.
+						this.config.embeddingUrl = value.trim() || this.configDefaults.embeddingUrl;
+						text.setValue(this.config.embeddingUrl);
+						await this.plugin.saveSettings();
+						// The embedding picker lists what this server runs, so ask the new address.
+						if (this.embeddingUrlDebounceTimer !== null) window.clearTimeout(this.embeddingUrlDebounceTimer);
+						this.embeddingUrlDebounceTimer = window.setTimeout(() => {
+							this.embeddingUrlDebounceTimer = null;
+							void this.refreshEmbeddingOptions(this.installedModels);
+						}, 400);
+					}));
+			},
+		};
 	}
 
 	// --- Chat model --------------------------------------------------------------------------
 
-	addModelSelector(container: HTMLElement) {
-		this.modelSetting = new Setting(container)
-			.setName('Chat Model')
-			.setDesc(`Loading models from ${this.providerName}…`)
-			.addExtraButton((button) => {
-				button
-					.setIcon('refresh-cw')
-					.setTooltip('Reload model list')
-					.onClick(() => this.refreshModelList());
-			})
-			.addDropdown((dropdown) => {
-				this.modelDropdown = dropdown;
-				dropdown.onChange(async (value) => {
-					this.config.chatModel = value;
-					await this.plugin.saveSettings();
-					this.plugin.notifyChatModelChanged();
-					this.updateModelValidationDesc();
-				});
-			});
+	private modelRow(): Row {
+		return {
+			name: 'Chat Model',
+			desc: `Loading models from ${this.providerName}…`,
+			render: setting => {
+				this.modelSetting = setting
+					.addExtraButton((button) => {
+						button
+							.setIcon('refresh-cw')
+							.setTooltip('Reload model list')
+							.onClick(() => this.refreshModelList());
+					})
+					.addDropdown((dropdown) => {
+						this.modelDropdown = dropdown;
+						dropdown.onChange(async (value) => {
+							this.config.chatModel = value;
+							await this.plugin.saveSettings();
+							this.plugin.notifyChatModelChanged();
+							this.updateModelValidationDesc();
+						});
+					});
 
-		this.modelStatusEl = this.modelSetting.descEl.createDiv({
-			cls: CSS_CLASS_PREFIX + "settings-status",
-		});
-		this.updateChatModelHint();
+				this.modelStatusEl = setting.descEl.createDiv({
+					cls: CSS_CLASS_PREFIX + "settings-status",
+				});
+				this.updateChatModelHint();
+			},
+		};
 	}
 
 	/** Across the bottom of the Chat Model row: how to load another model, where the provider says. */
@@ -358,70 +407,78 @@ export class SettingTab extends PluginSettingTab {
 
 	// --- Generation --------------------------------------------------------------------------
 
-	addHyperParameterTemperature(container: HTMLElement) {
-		new Setting(container)
-			.setName('Temperature')
-			.setDesc('Higher = more creative responses; lower = more focused and consistent')
-			.addSlider(slider => slider
-				.setLimits(0.1, 1.0, 0.05)
-				.setValue(this.plugin.settings.temperature)
-				.onChange(async (value) => {
-					this.plugin.settings.temperature = value;
-					await this.plugin.saveSettings();
-				})
-			);
+	private temperatureRow(): Row {
+		return {
+			name: 'Temperature',
+			desc: 'Higher = more creative responses; lower = more focused and consistent',
+			render: setting => {
+				setting.addSlider(slider => slider
+					.setLimits(0.1, 1.0, 0.05)
+					.setValue(this.plugin.settings.temperature)
+					.onChange(async (value) => {
+						this.plugin.settings.temperature = value;
+						await this.plugin.saveSettings();
+					})
+				);
+			},
+		};
 	}
 
 	// --- Embedding model ---------------------------------------------------------------------
 
-	addEmbeddingModelSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName('Use a dedicated embedding model')
-			.setDesc(`Select a separate ${this.providerName} model to generate embeddings. When off, the chat model is used.`)
-			.addToggle(toggle => toggle
-				.setValue(this.config.dedicatedEmbeddingEnabled)
-				.onChange(async (value) => {
-					this.config.dedicatedEmbeddingEnabled = value;
-					if (value && !this.config.embeddingModel) {
-						this.config.embeddingModel = this.suggestedEmbeddingModel();
-						this.updateEmbeddingPicker();
-					}
-					await this.plugin.saveSettings();
-					if (this.embeddingDropdownContainerEl) {
-						this.embeddingDropdownContainerEl.style.display = value ? '' : 'none';
-					}
-				}));
+	private dedicatedEmbeddingRow(): Row {
+		return {
+			name: 'Use a dedicated embedding model',
+			desc: `Select a separate ${this.providerName} model to generate embeddings. When off, the chat model is used.`,
+			render: setting => {
+				setting.addToggle(toggle => toggle
+					.setValue(this.config.dedicatedEmbeddingEnabled)
+					.onChange(async (value) => {
+						this.config.dedicatedEmbeddingEnabled = value;
+						if (value && !this.config.embeddingModel) {
+							this.config.embeddingModel = this.suggestedEmbeddingModel();
+							this.updateEmbeddingPicker();
+						}
+						await this.plugin.saveSettings();
+						// The rows below are only for the dedicated model.
+						this.refreshVisibility();
+					}));
+			},
+		};
+	}
 
-		this.embeddingDropdownContainerEl = container.createDiv();
-		this.embeddingDropdownContainerEl.style.display = this.config.dedicatedEmbeddingEnabled ? '' : 'none';
-		this.addEmbeddingServerUrl(this.embeddingDropdownContainerEl);
+	private embeddingModelRow(): Row {
+		return {
+			name: 'Embedding Model',
+			visible: () => this.config.dedicatedEmbeddingEnabled,
+			render: setting => {
+				setting
+					.addExtraButton(btn => btn
+						.setIcon('refresh-cw')
+						.setTooltip('Check again')
+						.onClick(() => this.refreshEmbeddingStatus())
+					)
+					.addDropdown(dropdown => {
+						this.embeddingDropdown = dropdown;
+						dropdown.onChange(async (value) => {
+							this.config.embeddingModel = value;
+							await this.plugin.saveSettings();
+							// Check the choice against the server as it is now, not as it was when the
+							// list was fetched: llama-server may have stopped, or Ollama pulled the model.
+							await this.refreshEmbeddingStatus();
+						});
+					});
 
-		const setting = new Setting(this.embeddingDropdownContainerEl)
-			.setName('Embedding Model')
-			.addExtraButton(btn => btn
-				.setIcon('refresh-cw')
-				.setTooltip('Check again')
-				.onClick(() => this.refreshEmbeddingStatus())
-			)
-			.addDropdown(dropdown => {
-				this.embeddingDropdown = dropdown;
-				dropdown.onChange(async (value) => {
-					this.config.embeddingModel = value;
-					await this.plugin.saveSettings();
-					// Check the choice against the server as it is now, not as it was when the list
-					// was fetched: llama-server may have stopped, or Ollama pulled the model since.
-					await this.refreshEmbeddingStatus();
+				this.embeddingSettingEl = setting.settingEl;
+				// Lets the hint wrap onto a full-width line of its own, inside the row.
+				setting.settingEl.classList.add(CSS_CLASS_PREFIX + 'setting-with-hint');
+				this.embeddingStatusEl = setting.descEl.createDiv({
+					cls: CSS_CLASS_PREFIX + 'settings-status',
 				});
-			});
-
-		this.embeddingSettingEl = setting.settingEl;
-		// Lets the hint wrap onto a full-width line of its own, inside the row.
-		setting.settingEl.classList.add(CSS_CLASS_PREFIX + 'setting-with-hint');
-		this.embeddingStatusEl = setting.descEl.createDiv({
-			cls: CSS_CLASS_PREFIX + 'settings-status',
-		});
-		// The first listing is already on its way; show that rather than a blank picker.
-		this.updateEmbeddingPicker();
+				// The first listing is already on its way; show that rather than a blank picker.
+				this.updateEmbeddingPicker();
+			},
+		};
 	}
 
 	/**
@@ -683,58 +740,105 @@ export class SettingTab extends PluginSettingTab {
 
 	// --- Retrieval and misc ------------------------------------------------------------------
 
-	addRagTopKSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName('Retrieved chunks (top-K)')
-			.setDesc('Number of note excerpts to inject into each query')
-			.addSlider(slider => slider
-				.setLimits(1, 10, 1)
-				.setValue(this.plugin.settings.ragTopK)
-				.onChange(async (value) => {
-					this.plugin.settings.ragTopK = value;
-					await this.plugin.saveSettings();
-				}));
+	private topKRow(): Row {
+		return {
+			name: 'Retrieved chunks (top-K)',
+			desc: 'Number of note excerpts to inject into each query',
+			render: setting => {
+				setting.addSlider(slider => slider
+					.setLimits(1, 10, 1)
+					.setValue(this.plugin.settings.ragTopK)
+					.onChange(async (value) => {
+						this.plugin.settings.ragTopK = value;
+						await this.plugin.saveSettings();
+					}));
+			},
+		};
 	}
 
-	addEmbeddingCacheSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName('Cache embeddings on disk')
-			.setDesc('Faster loading when using a large vault for your Mini-RAG context. Cache is stored under the plugin folder.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.embeddingCacheEnabled)
-				.onChange(async (value) => {
-					this.plugin.settings.embeddingCacheEnabled = value;
-					await this.plugin.saveSettings();
-				})
-			);
+	private embeddingCacheRow(): Row {
+		return {
+			name: 'Cache embeddings on disk',
+			desc: 'Faster loading when using a large vault for your Mini-RAG context. Cache is stored under the plugin folder.',
+			render: setting => {
+				setting.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.embeddingCacheEnabled)
+					.onChange(async (value) => {
+						this.plugin.settings.embeddingCacheEnabled = value;
+						await this.plugin.saveSettings();
+					})
+				);
+			},
+		};
 	}
 
-	addEnableContextFreeChats(container: HTMLElement) {
-		new Setting(container)
-			.setName('Enable context-free chats')
-			.setDesc('Add the option for LLM chats without the context of a note or folder')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.isContextFreeChatsEnabled)
-				.onChange(async (value) => {
-					this.plugin.settings.isContextFreeChatsEnabled = value;
-					await this.plugin.saveSettings();
-				})
-			);
+	private contextFreeChatsRow(): Row {
+		return {
+			name: 'Enable context-free chats',
+			desc: 'Add the option for LLM chats without the context of a note or folder',
+			render: setting => {
+				setting.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.isContextFreeChatsEnabled)
+					.onChange(async (value) => {
+						this.plugin.settings.isContextFreeChatsEnabled = value;
+						await this.plugin.saveSettings();
+					})
+				);
+			},
+		};
 	}
 
-	display(): void {
-		const {containerEl} = this;
-		containerEl.empty();
-		// Supersede any refresh still in flight, and let this render's own refresh start.
+	// --- Drawing -----------------------------------------------------------------------------
+
+	/**
+	 * Set up in steps: the provider, then its server and models, then the shared tuning. Step 2 is
+	 * named after the provider, so a switch visibly changes that step and no other. Above the steps,
+	 * the support banner: there everyone opening the settings sees it, and one row does not push
+	 * setup down.
+	 */
+	private sections(): Section[] {
+		const links = this.plugin.fundingLinks();
+		return [
+			...(links.length > 0 ? [{rows: [{
+				name: SUPPORT_TITLE,
+				desc: SUPPORT_TEXT,
+				render: (setting: Setting) => configureSupportSetting(setting, links),
+			}]}] : []),
+			{heading: '1. Choose a provider', rows: [this.providerRow()]},
+			{
+				heading: `2. Connect to ${this.providerName}`,
+				connectionStatus: true,
+				rows: [
+					this.serverUrlRow(),
+					this.modelRow(),
+					this.dedicatedEmbeddingRow(),
+					...(this.plugin.ai.capabilities.separateEmbeddingEndpoint ? [this.embeddingServerUrlRow()] : []),
+					this.embeddingModelRow(),
+				],
+			},
+			{
+				heading: '3. Tune your chats',
+				rows: [this.temperatureRow(), this.topKRow(), this.contextFreeChatsRow(), this.embeddingCacheRow()],
+			},
+		];
+	}
+
+	/** Before any row is drawn. */
+	private beginDraw() {
+		// Supersede any refresh still in flight, and let this draw's own refresh start.
 		this.renderSeq++;
 		this.isLoadingModels = false;
+		// Obsidian 1.13+ keeps a row's element when it draws the tab again, and the hints were put
+		// on the element itself, so take them off.
+		this.chatHintEl?.remove();
+		this.embeddingHintEl?.remove();
 		this.modelDropdown = null;
 		this.modelSetting = null;
 		this.modelStatusEl = null;
 		this.connectionStatusEl = null;
 		this.chatHintEl = null;
 		this.embeddingDropdown = null;
-		this.embeddingDropdownContainerEl = null;
+		this.conditionalRows = [];
 		this.embeddingStatusEl = null;
 		this.embeddingSettingEl = null;
 		this.embeddingHintEl = null;
@@ -742,28 +846,115 @@ export class SettingTab extends PluginSettingTab {
 		this.installedModels = [];
 		this.listedEmbeddingModels = [];
 		this.embeddingListFailure = null;
-		// display() always starts a fresh listing, below.
+		// Every draw starts a fresh listing, once its rows are there.
 		this.embeddingLoading = true;
+	}
 
-		// Set up in steps: the provider, then its server and models, then the shared tuning. Step 2
-		// is named after the provider, so a switch visibly changes that step and no other.
-		// Above the steps, so everyone opening the settings sees it; one row, so setup is not pushed down.
-		addSupportSetting(containerEl, this.plugin.fundingLinks());
+	/** Obsidian before 1.13 calls this to draw the tab. From 1.13 it draws getSettingDefinitions(). */
+	display(): void {
+		this.drawRows();
+	}
 
-		this.addHeading(containerEl, '1. Choose a provider');
-		this.addProviderSelector(containerEl);
+	/** Draws the rows into the tab, as Obsidian 1.13+ would draw their definitions. */
+	private drawRows() {
+		const {containerEl} = this;
+		containerEl.empty();
+		this.beginDraw();
+		for (const section of this.sections()) {
+			if (section.heading) {
+				const heading = new Setting(containerEl).setName(section.heading).setHeading();
+				if (section.connectionStatus) this.connectionStatusEl = this.createConnectionStatus(heading.controlEl);
+			}
+			for (const row of section.rows) {
+				const setting = new Setting(containerEl).setName(row.name);
+				if (row.desc) setting.setDesc(row.desc);
+				row.render(setting);
+				if (row.visible) this.conditionalRows.push({row, setting});
+			}
+		}
+		this.refreshVisibility();
+		this.endDraw();
+	}
 
-		const connect = this.addHeading(containerEl, `2. Connect to ${this.providerName}`);
-		this.connectionStatusEl = connect.controlEl.createSpan({cls: CSS_CLASS_PREFIX + 'connection-status'});
-		this.addServerUrl(containerEl);
-		this.addModelSelector(containerEl);
-		this.addEmbeddingModelSetting(containerEl);
-
-		this.addHeading(containerEl, '3. Tune your chats');
-		this.addHyperParameterTemperature(containerEl);
-		this.addRagTopKSetting(containerEl);
-		this.addEnableContextFreeChats(containerEl);
-		this.addEmbeddingCacheSetting(containerEl);
+	/** Once every row is drawn: load the model list, and watch for coming back to the window. */
+	private endDraw() {
+		this.showing = true;
+		// Obsidian 1.13+ can keep the settings open in a window of their own, and bringing it back
+		// to the front draws nothing new. A model installed meanwhile would go on showing as
+		// missing, so check again whenever this window regains focus.
+		this.focusWindow?.removeEventListener('focus', this.onWindowFocus);
+		this.focusWindow = this.containerEl.win;
+		this.focusWindow.addEventListener('focus', this.onWindowFocus);
 		void this.refreshModelList();
+	}
+
+	/** Called by Obsidian when the tab is closed or another is opened. */
+	hide(): void {
+		this.showing = false;
+		this.focusWindow?.removeEventListener('focus', this.onWindowFocus);
+		this.focusWindow = null;
+		super.hide();
+	}
+
+	/**
+	 * Asks the servers for their models again, if the tab is showing: on coming back to its window,
+	 * and when the chat panel finds that a missing model now works.
+	 */
+	recheckModels(): void {
+		if (this.showing) void this.refreshModelList();
+	}
+
+	/**
+	 * The tab's settings for Obsidian 1.13+, which draws them and lists them in the settings search.
+	 * Obsidian also asks for these just to index the search, so nothing here goes to the server:
+	 * the first row's render starts a draw, and the last one's loads the model list.
+	 */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		if (!requireApiVersion('1.13.0')) return [];
+		const sections = this.sections();
+		const rows = sections.flatMap(section => section.rows);
+		// Neither the first row nor the last is ever hidden, so both are always drawn.
+		const [first, last] = [rows[0], rows[rows.length - 1]];
+
+		return sections.map(section => ({
+			type: 'group' as const,
+			heading: section.heading,
+			items: section.rows.map((row, index) => ({
+				name: row.name,
+				desc: row.desc,
+				visible: row.visible,
+				render: (setting: Setting, group: SettingGroup) => {
+					if (row === first) this.beginDraw();
+					// A group heading is text, but it can be a fragment with the status inside.
+					if (section.connectionStatus && index === 0) {
+						// Only 1.13+ draws these, so this always holds; but Obsidian's linter checks
+						// for the guard here, where the 1.11 API is called, not at the top.
+						if (requireApiVersion('1.13.0')) {
+							group.setHeading(createFragment(heading => {
+								heading.appendText(section.heading ?? '');
+								this.connectionStatusEl = this.createConnectionStatus(heading);
+							}));
+						}
+					}
+					row.render(setting);
+					if (row === last) this.endDraw();
+				},
+			})),
+		}));
+	}
+
+	/** Draws the tab again, for a provider switch, which changes which rows there are. */
+	private redraw() {
+		if (requireApiVersion('1.13.0')) this.update();
+		else this.drawRows();
+	}
+
+	/** Shows the rows that are shown only some of the time, or hides them, as they now say. */
+	private refreshVisibility() {
+		if (requireApiVersion('1.13.0')) {
+			this.refreshDomState();
+			return;
+		}
+		for (const {row, setting} of this.conditionalRows) setting.settingEl.toggle(row.visible?.() ?? true);
 	}
 }

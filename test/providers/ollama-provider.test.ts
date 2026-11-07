@@ -11,7 +11,8 @@ import {EmbeddingsUnsupportedError, ModelNotAvailableError, ProviderUnreachableE
 import {defaultSettings} from '../../src/defaults';
 import {PluginSettings, ProviderConfig} from '../../src/types';
 import MiniRagPlugin from '../../main';
-import {chunkEvery, errorResponse, installFetch, ndjson, nullBodyResponse, streamResponse} from '../helpers/stream';
+import {StreamRequest, StreamResponse} from '../../src/providers/stream-transport';
+import {chunkEvery, errorResponse, installTransport, ndjson, streamResponse} from '../helpers/stream';
 
 const URL_BASE = 'http://localhost:11434';
 
@@ -437,16 +438,16 @@ describe('waitForEmbeddingModelUnloaded', () => {
 describe('sendQuestion (streaming)', () => {
 	// The legacy prompt/context fields are gone: /api/chat takes the conversation as messages.
 	it('posts to /api/chat with the conversation, model, temperature and stream flag', async () => {
-		const fetchSpy = installFetch(async () =>
+		const sendSpy = installTransport(async () =>
 			streamResponse(ndjson([{message: {role: 'assistant', content: 'hi'}, done: false}, {done: true}])),
 		);
 		const {provider} = makeProvider({}, {temperature: 0.42});
 
 		await provider.sendQuestion('why?');
 
-		expect(fetchSpy).toHaveBeenCalledTimes(1);
-		expect(fetchSpy.mock.calls[0][0]).toBe(`${URL_BASE}/api/chat`);
-		const init = fetchSpy.mock.calls[0][1] as RequestInit;
+		expect(sendSpy).toHaveBeenCalledTimes(1);
+		expect(sendSpy.mock.calls[0][0]).toBe(`${URL_BASE}/api/chat`);
+		const init = sendSpy.mock.calls[0][1] as StreamRequest;
 		expect(init.method).toBe('POST');
 		expect(JSON.parse(String(init.body))).toEqual({
 			model: 'chat-model',
@@ -458,17 +459,17 @@ describe('sendQuestion (streaming)', () => {
 
 	// Ollama's names for the same two things: num_predict, and prompt_eval_count on the last chunk.
 	it('caps the answer when asked', async () => {
-		const fetchSpy = installFetch(async () => streamResponse(ndjson([{message: {content: 'a'}}, {done: true}])));
+		const sendSpy = installTransport(async () => streamResponse(ndjson([{message: {content: 'a'}}, {done: true}])));
 		const {provider} = makeProvider({}, {temperature: 0.42});
 
 		await provider.complete('p', {maxTokens: 512});
 
-		const init = fetchSpy.mock.calls[0][1] as RequestInit;
+		const init = sendSpy.mock.calls[0][1] as StreamRequest;
 		expect(JSON.parse(String(init.body)).options).toEqual({temperature: 0.42, num_predict: 512});
 	});
 
 	it('reports the prompt\'s token count from the final chunk', async () => {
-		installFetch(async () => streamResponse(ndjson([{message: {content: 'a'}}, {done: true, prompt_eval_count: 1534}])));
+		installTransport(async () => streamResponse(ndjson([{message: {content: 'a'}}, {done: true, prompt_eval_count: 1534}])));
 		const {provider} = makeProvider();
 		const onUsage = vi.fn();
 
@@ -478,7 +479,7 @@ describe('sendQuestion (streaming)', () => {
 	});
 
 	it('concatenates the message contents and returns the full text', async () => {
-		installFetch(async () =>
+		installTransport(async () =>
 			streamResponse(ndjson([
 				{message: {content: 'Hello'}},
 				{message: {content: ' '}},
@@ -492,7 +493,7 @@ describe('sendQuestion (streaming)', () => {
 	});
 
 	it('calls onToken with each token and the accumulated text', async () => {
-		installFetch(async () =>
+		installTransport(async () =>
 			streamResponse(ndjson([{message: {content: 'a'}}, {message: {content: 'b'}}, {message: {content: 'c'}}, {done: true}])),
 		);
 		const {provider} = makeProvider();
@@ -505,7 +506,7 @@ describe('sendQuestion (streaming)', () => {
 	});
 
 	it('does not call onToken for a chunk with no message content', async () => {
-		installFetch(async () => streamResponse(ndjson([{done: false}, {done: true}])));
+		installTransport(async () => streamResponse(ndjson([{done: false}, {done: true}])));
 		const {provider} = makeProvider();
 		const onToken = vi.fn();
 
@@ -515,7 +516,7 @@ describe('sendQuestion (streaming)', () => {
 
 	describe('NDJSON framing', () => {
 		it('handles several complete lines in one byte chunk', async () => {
-			installFetch(async () =>
+			installTransport(async () =>
 				streamResponse(['{"message":{"content":"a"}}\n{"message":{"content":"b"}}\n{"done":true}\n']),
 			);
 			const {provider} = makeProvider();
@@ -525,7 +526,7 @@ describe('sendQuestion (streaming)', () => {
 
 		// The buffer carry-over: a JSON object split across arbitrary byte boundaries.
 		it('reassembles one JSON line split across many byte chunks', async () => {
-			installFetch(async () =>
+			installTransport(async () =>
 				streamResponse(ndjson([{message: {content: 'hello world'}}, {done: true}], chunkEvery(7))),
 			);
 			const {provider} = makeProvider();
@@ -534,7 +535,7 @@ describe('sendQuestion (streaming)', () => {
 		});
 
 		it('reassembles a stream split one byte at a time', async () => {
-			installFetch(async () =>
+			installTransport(async () =>
 				streamResponse(ndjson([{message: {content: 'abc'}}, {message: {content: 'def'}}, {done: true}], chunkEvery(1))),
 			);
 			const {provider} = makeProvider();
@@ -544,21 +545,21 @@ describe('sendQuestion (streaming)', () => {
 
 		// The defensive flush: a final line with no terminating newline.
 		it('processes a trailing line with no newline', async () => {
-			installFetch(async () => streamResponse(['{"message":{"content":"a"}}\n{"message":{"content":"b"},"done":true}']));
+			installTransport(async () => streamResponse(['{"message":{"content":"a"}}\n{"message":{"content":"b"},"done":true}']));
 			const {provider} = makeProvider();
 
 			expect(await provider.sendQuestion('q')).toBe('ab');
 		});
 
 		it('ignores blank and whitespace-only lines', async () => {
-			installFetch(async () => streamResponse(['\n  \n{"message":{"content":"a"}}\n\n{"done":true}\n\n']));
+			installTransport(async () => streamResponse(['\n  \n{"message":{"content":"a"}}\n\n{"done":true}\n\n']));
 			const {provider} = makeProvider();
 
 			expect(await provider.sendQuestion('q')).toBe('a');
 		});
 
 		it('handles an empty stream', async () => {
-			installFetch(async () => streamResponse([]));
+			installTransport(async () => streamResponse([]));
 			const {provider} = makeProvider();
 
 			expect(await provider.sendQuestion('q')).toBe('');
@@ -566,7 +567,7 @@ describe('sendQuestion (streaming)', () => {
 
 		it('throws a truncated message for a non-JSON line', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => streamResponse([`${'x'.repeat(200)}\n`]));
+			installTransport(async () => streamResponse([`${'x'.repeat(200)}\n`]));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(
@@ -576,23 +577,23 @@ describe('sendQuestion (streaming)', () => {
 			await assertion;
 		});
 
-		// A malformed stream is retried: the throw happens after fetch resolved, so
+		// A malformed stream is retried: the throw happens after the request resolved, so
 		// abortController is still set and withRetry's shouldAbort reads false.
 		it('retries a malformed stream three times', async () => {
 			vi.useFakeTimers();
-			const fetchSpy = installFetch(async () => streamResponse(['not json\n']));
+			const sendSpy = installTransport(async () => streamResponse(['not json\n']));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(/unexpected response/);
 			await vi.advanceTimersByTimeAsync(2000);
 			await assertion;
 
-			expect(fetchSpy).toHaveBeenCalledTimes(3);
+			expect(sendSpy).toHaveBeenCalledTimes(3);
 		});
 
 		it('throws on an error field mid-stream', async () => {
 			vi.useFakeTimers();
-			installFetch(async () =>
+			installTransport(async () =>
 				streamResponse(ndjson([{message: {content: 'a'}}, {error: 'model crashed'}])),
 			);
 			const {provider} = makeProvider();
@@ -604,7 +605,7 @@ describe('sendQuestion (streaming)', () => {
 
 		it('routes a mid-stream CUDA error through the GPU guidance', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => streamResponse(ndjson([{error: 'cuda init failed'}])));
+			installTransport(async () => streamResponse(ndjson([{error: 'cuda init failed'}])));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(
@@ -619,22 +620,22 @@ describe('sendQuestion (streaming)', () => {
 		/** Answers each request with "answer N", counting from 1. */
 		const numberedAnswers = () => {
 			let n = 0;
-			return installFetch(async () => {
+			return installTransport(async () => {
 				n++;
 				return streamResponse(ndjson([{message: {role: 'assistant', content: `answer ${n}`}}, {done: true}]));
 			});
 		};
-		const messagesOf = (spy: ReturnType<typeof installFetch>, call: number) =>
-			JSON.parse(String((spy.mock.calls[call][1] as RequestInit).body)).messages;
+		const messagesOf = (spy: ReturnType<typeof installTransport>, call: number) =>
+			JSON.parse(String((spy.mock.calls[call][1] as StreamRequest).body)).messages;
 
 		it('sends the earlier exchange ahead of a follow-up question', async () => {
-			const fetchSpy = numberedAnswers();
+			const sendSpy = numberedAnswers();
 			const {provider} = makeProvider();
 
 			await provider.sendQuestion('first');
 			await provider.sendQuestion('second');
 
-			expect(messagesOf(fetchSpy, 1)).toEqual([
+			expect(messagesOf(sendSpy, 1)).toEqual([
 				{role: 'user', content: 'first'},
 				{role: 'assistant', content: 'answer 1'},
 				{role: 'user', content: 'second'},
@@ -642,23 +643,23 @@ describe('sendQuestion (streaming)', () => {
 		});
 
 		it('clearContext starts a fresh conversation', async () => {
-			const fetchSpy = numberedAnswers();
+			const sendSpy = numberedAnswers();
 			const {provider} = makeProvider();
 
 			await provider.sendQuestion('first');
 			provider.clearContext();
 			await provider.sendQuestion('second');
 
-			expect(messagesOf(fetchSpy, 1)).toEqual([{role: 'user', content: 'second'}]);
+			expect(messagesOf(sendSpy, 1)).toEqual([{role: 'user', content: 'second'}]);
 		});
 
 		it('sends per-turn context as a leading system message', async () => {
-			const fetchSpy = numberedAnswers();
+			const sendSpy = numberedAnswers();
 			const {provider} = makeProvider();
 
 			await provider.sendQuestion('why?', {context: 'EXCERPTS'});
 
-			expect(messagesOf(fetchSpy, 0)).toEqual([
+			expect(messagesOf(sendSpy, 0)).toEqual([
 				{role: 'system', content: 'EXCERPTS'},
 				{role: 'user', content: 'why?'},
 			]);
@@ -666,7 +667,7 @@ describe('sendQuestion (streaming)', () => {
 
 		// An older server may still send /api/generate's token array; it must not leak back in.
 		it('ignores a stray legacy context field in the stream', async () => {
-			const fetchSpy = installFetch(async () =>
+			const sendSpy = installTransport(async () =>
 				streamResponse(ndjson([{message: {content: 'a'}}, {done: true, context: [5, 6]}])),
 			);
 			const {provider} = makeProvider();
@@ -674,7 +675,7 @@ describe('sendQuestion (streaming)', () => {
 			await provider.sendQuestion('first');
 			await provider.sendQuestion('second');
 
-			const body = JSON.parse(String((fetchSpy.mock.calls[1][1] as RequestInit).body));
+			const body = JSON.parse(String((sendSpy.mock.calls[1][1] as StreamRequest).body));
 			expect(body).not.toHaveProperty('context');
 			expect(body).not.toHaveProperty('prompt');
 		});
@@ -682,7 +683,7 @@ describe('sendQuestion (streaming)', () => {
 		it('does not record an exchange whose stream failed', async () => {
 			vi.useFakeTimers();
 			let n = 0;
-			const fetchSpy = installFetch(async () => {
+			const sendSpy = installTransport(async () => {
 				n++;
 				// Call 1 succeeds; calls 2-4 (one turn, three attempts) fail; call 5 succeeds.
 				if (n >= 2 && n <= 4) return errorResponse(503, 'overloaded');
@@ -696,7 +697,7 @@ describe('sendQuestion (streaming)', () => {
 			await failed;
 			await provider.sendQuestion('third');
 
-			expect(messagesOf(fetchSpy, 4)).toEqual([
+			expect(messagesOf(sendSpy, 4)).toEqual([
 				{role: 'user', content: 'first'},
 				{role: 'assistant', content: 'answer 1'},
 				{role: 'user', content: 'third'},
@@ -710,7 +711,7 @@ describe('sendQuestion (streaming)', () => {
 		// they live in different places and have to stay consistent.
 		it('raises a non-ok response with its status and body', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => errorResponse(503, 'server overloaded'));
+			installTransport(async () => errorResponse(503, 'server overloaded'));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(
@@ -732,7 +733,7 @@ describe('sendQuestion (streaming)', () => {
 		// server said nothing.
 		it('keeps the prefix when the error body is empty', async () => {
 			vi.useFakeTimers();
-			installFetch(async () => errorResponse(503, ''));
+			installTransport(async () => errorResponse(503, ''));
 			const {provider} = makeProvider();
 
 			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(
@@ -742,22 +743,10 @@ describe('sendQuestion (streaming)', () => {
 			await assertion;
 		});
 
-		it('reports an empty response body', async () => {
-			vi.useFakeTimers();
-			installFetch(async () => nullBodyResponse());
-			const {provider} = makeProvider();
-
-			const assertion = expect(provider.sendQuestion('q')).rejects.toThrow(
-				'The server returned an empty response body.',
-			);
-			await vi.advanceTimersByTimeAsync(2000);
-			await assertion;
-		});
-
 		it('retries a transport failure and succeeds on the second attempt', async () => {
 			vi.useFakeTimers();
 			let attempt = 0;
-			const fetchSpy = installFetch(async () => {
+			const sendSpy = installTransport(async () => {
 				attempt++;
 				if (attempt === 1) throw new Error('ECONNREFUSED');
 				return streamResponse(ndjson([{message: {content: 'recovered'}}, {done: true}]));
@@ -768,12 +757,12 @@ describe('sendQuestion (streaming)', () => {
 			await vi.advanceTimersByTimeAsync(1000);
 
 			expect(await promise).toBe('recovered');
-			expect(fetchSpy).toHaveBeenCalledTimes(2);
+			expect(sendSpy).toHaveBeenCalledTimes(2);
 		});
 
 		it('makes three attempts before giving up', async () => {
 			vi.useFakeTimers();
-			const fetchSpy = installFetch(async () => {
+			const sendSpy = installTransport(async () => {
 				throw new Error('ECONNREFUSED');
 			});
 			const {provider} = makeProvider();
@@ -782,24 +771,24 @@ describe('sendQuestion (streaming)', () => {
 			await vi.advanceTimersByTimeAsync(2000);
 			await assertion;
 
-			expect(fetchSpy).toHaveBeenCalledTimes(3);
+			expect(sendSpy).toHaveBeenCalledTimes(3);
 		});
 	});
 
 	describe('abort', () => {
 		it('passes an abort signal with the request', async () => {
-			const fetchSpy = installFetch(async () => streamResponse(ndjson([{done: true}])));
+			const sendSpy = installTransport(async () => streamResponse(ndjson([{done: true}])));
 			const {provider} = makeProvider();
 
 			await provider.sendQuestion('q');
 
-			expect((fetchSpy.mock.calls[0][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
+			expect((sendSpy.mock.calls[0][1] as StreamRequest).signal).toBeInstanceOf(AbortSignal);
 		});
 
 		// Closing the panel mid-stream: the read rejects, and the abort must not be retried.
 		it('propagates a mid-stream abort without retrying', async () => {
 			const encoder = new TextEncoder();
-			const fetchSpy = installFetch(async (_url, init) => {
+			const sendSpy = installTransport(async (_url, init) => {
 				const signal = init.signal as AbortSignal;
 				const body = new ReadableStream<Uint8Array>({
 					start(controller) {
@@ -809,7 +798,7 @@ describe('sendQuestion (streaming)', () => {
 						);
 					},
 				});
-				return {ok: true, status: 200, body, text: async () => ''} as unknown as Response;
+				return {ok: true, status: 200, body, text: async () => ''} as unknown as StreamResponse;
 			});
 			const {provider} = makeProvider();
 
@@ -818,17 +807,17 @@ describe('sendQuestion (streaming)', () => {
 			});
 
 			await expect(promise).rejects.toThrow('aborted');
-			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			expect(sendSpy).toHaveBeenCalledTimes(1);
 		});
 
-		it('does not retry when fetch itself rejects with an AbortError', async () => {
-			const fetchSpy = installFetch(async () => {
+		it('does not retry when the request itself rejects with an AbortError', async () => {
+			const sendSpy = installTransport(async () => {
 				throw new DOMException('aborted', 'AbortError');
 			});
 			const {provider} = makeProvider();
 
 			await expect(provider.sendQuestion('q')).rejects.toThrow('aborted');
-			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			expect(sendSpy).toHaveBeenCalledTimes(1);
 		});
 
 		it('is safe to call with no request in flight', () => {
@@ -839,7 +828,7 @@ describe('sendQuestion (streaming)', () => {
 		// abort() nulls the controller, and withRetry reads that to skip a pending retry.
 		it('skips a pending retry when abort lands during the delay', async () => {
 			vi.useFakeTimers();
-			const fetchSpy = installFetch(async () => {
+			const sendSpy = installTransport(async () => {
 				throw new Error('ECONNREFUSED');
 			});
 			const {provider} = makeProvider();
@@ -848,24 +837,24 @@ describe('sendQuestion (streaming)', () => {
 			const assertion = expect(promise).rejects.toThrow('ECONNREFUSED');
 
 			await vi.advanceTimersByTimeAsync(0);
-			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			expect(sendSpy).toHaveBeenCalledTimes(1);
 
 			provider.abort();
 			await vi.advanceTimersByTimeAsync(2000);
 			await assertion;
 
-			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			expect(sendSpy).toHaveBeenCalledTimes(1);
 		});
 	});
 
 	it('reads the URL from settings at call time', async () => {
-		const fetchSpy = installFetch(async () => streamResponse(ndjson([{done: true}])));
+		const sendSpy = installTransport(async () => streamResponse(ndjson([{done: true}])));
 		const {provider, config} = makeProvider();
 
 		config.url = 'http://127.0.0.1:9999';
 		await provider.sendQuestion('q');
 
-		expect(fetchSpy.mock.calls[0][0]).toBe('http://127.0.0.1:9999/api/chat');
+		expect(sendSpy.mock.calls[0][0]).toBe('http://127.0.0.1:9999/api/chat');
 	});
 });
 

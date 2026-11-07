@@ -1,7 +1,7 @@
 {
 	"name": "mini-rag",
-	"version": "2.3.0",
-	"description": "Leverage Retrieval Augmented Generation (RAG) for your notes, using a locally running LLM or AI.",
+	"version": "2.3.1",
+	"description": "Leverage Retrieval Augmented Generation (RAG) for your notes using a locally running LLM or AI.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -19,8 +19,8 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^20.19.9",
-		"@typescript-eslint/eslint-plugin": "^8.71.2",
-		"@typescript-eslint/parser": "^8.71.2",
+		"@typescript-eslint/eslint-plugin": "^8.72.1",
+		"@typescript-eslint/parser": "^8.72.1",
 		"@vitest/coverage-v8": "^4.1.12",
 		"esbuild": "^0.28.2",
 		"eslint": "^8.57.1",
@@ -29,5 +29,10 @@
 		"tslib": "2.4.0",
 		"typescript": "~5.9.2",
 		"vitest": "^4.1.12"
+	},
+	"overrides": {
+		"@typescript-eslint/typescript-estree": {
+			"minimatch": "^11.0.5"
+		}
 	}
 }

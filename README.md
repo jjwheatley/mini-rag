@@ -123,7 +123,15 @@ Your settings are migrated automatically: your existing Ollama URL and models ca
 ## Privacy & Permissions
 
 ### Network Usage
-Mini-RAG communicates only with the local server you configure (by default `http://localhost:11434` for Ollama, or `http://localhost:8080` for llama.cpp). No data is sent to any external server.
+Mini-RAG talks only to the servers you set up and choose in its settings, which run the AI models on your own machine. It contacts no other service: there is no telemetry, no analytics and no account.
+
+| Server | Default address | What Mini-RAG asks it for |
+|---|---|---|
+| **Ollama** | `http://localhost:11434` | The list of installed models; embeddings for your notes; chat replies and summaries; which models are loaded, to wait for a dedicated embedding model to unload before a chat starts. |
+| **llama.cpp** (`llama-server`) | `http://localhost:8080` | The model it is running and its context size; chat replies and summaries; embeddings, when the chat model provides them. |
+| **llama.cpp embedding server** (a second `llama-server`, only with a dedicated embedding model) | `http://localhost:8081` | The model it is running; embeddings for your notes. |
+
+These requests carry the text of the notes and folders you open a chat with: in pieces to be embedded, and as excerpts or whole notes alongside your questions and the conversation so far. That is how the model can answer from your notes. Each address is the one in Mini-RAG's settings, so if you point one at another computer, your notes go to that computer.
 
 ### Clipboard Access
 Mini-RAG writes to the clipboard when you click a **Copy** button (e.g. to copy a chat message, or to copy a setup command such as `ollama pull` from the settings panel). It never reads clipboard content.

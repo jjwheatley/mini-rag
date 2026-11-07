@@ -309,6 +309,11 @@
 	color: var(--text-warning, var(--color-orange));
 }
 
+/* On Obsidian 1.13+ the status is part of the heading's text, so it needs space after the name. */
+.setting-item-name > .mini-rag-connection-status {
+	margin-left: var(--size-4-2);
+}
+
 .mini-rag-settings-status.is-success {
 	color: var(--text-success, var(--color-green));
 }

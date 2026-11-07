@@ -1,5 +1,6 @@
 import {requestUrl} from "obsidian";
-import {ProviderError, ProviderUnreachableError} from "./errors";
+import {ProviderUnreachableError} from "./errors";
+import {streamTransport} from "./stream-transport";
 
 export interface JsonRequest {
 	url: string;
@@ -54,10 +55,8 @@ export function postJson<T = unknown>(request: JsonRequest): Promise<JsonResult<
 /**
  * POSTs and feeds the response body to `onLine`, one line at a time.
  *
- * This uses fetch rather than Obsidian's requestUrl because requestUrl buffers the whole response
- * and cannot stream. That is safe here: the plugin is desktop-only and talks to a local server, so
- * there is no CORS concern. (A non-localhost URL would hit CORS on this path but not on the
- * requestUrl ones, which presents as "the model list loads but chat fails".)
+ * This goes through Node's http (stream-transport.ts) rather than Obsidian's requestUrl, because
+ * requestUrl buffers the whole response and cannot stream or be cancelled.
  *
  * Owns the line buffering for every provider: partial lines carry across byte chunks, and a final
  * line with no trailing newline is still delivered.
@@ -70,7 +69,7 @@ export async function streamLines(
 	onHttpError: (status: number, bodyText: string) => Error,
 	headers: Record<string, string> = {},
 ): Promise<void> {
-	const response = await fetch(url, {
+	const response = await streamTransport.send(url, {
 		method: "POST",
 		headers: {"Content-Type": "application/json", ...headers},
 		body: JSON.stringify(body),
@@ -82,22 +81,16 @@ export async function streamLines(
 		throw onHttpError(response.status, detail);
 	}
 
-	if (!response.body) {
-		throw new ProviderError("The server returned an empty response body.");
-	}
-
-	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
 	let buffer = "";
 
-	let readResult = await reader.read();
-	while (!readResult.done) {
-		buffer += decoder.decode(readResult.value, {stream: true});
-		const lines = buffer.split("\n");
-		// The last element is either an incomplete line or "", so it carries to the next chunk.
-		buffer = lines.pop() ?? "";
-		for (const line of lines) onLine(line);
-		readResult = await reader.read();
+	for await (const chunk of response.body) {
+		buffer += decoder.decode(chunk, {stream: true});
+		// Everything up to the last newline is whole lines; the rest carries to the next chunk.
+		const end = buffer.lastIndexOf("\n");
+		if (end === -1) continue;
+		for (const line of buffer.slice(0, end).split("\n")) onLine(line);
+		buffer = buffer.slice(end + 1);
 	}
 
 	// Flush data not followed by a newline. Ollama always terminates its lines; this is a guard
